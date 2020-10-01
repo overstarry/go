@@ -85,6 +85,16 @@ Do not send CLs removing the interior tags from such phrases.
   that is still considered to be a passing test.
 </p>
 
+<p><!-- golang.org/issue/37519 -->
+  The <code>go</code> <code>get</code> <code>-insecure</code> flag is
+  deprecated and will be removed in a future version. The <code>GOINSECURE</code>
+  environment variable should be used instead, since it provides control
+  over which modules may be retrieved using an insecure scheme. Unlike the
+  <code>-insecure</code> flag, <code>GOINSECURE</code> does not disable module
+  sum validation using the checksum database. The <code>GOPRIVATE</code> or
+  <code>GONOSUMDB</code> environment variables may be used instead.
+</p>
+
 <h4 id="all-pattern">The <code>all</code> pattern</h4>
 
 <p><!-- golang.org/cl/240623 -->
@@ -152,6 +162,26 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   TODO
+</p>
+
+<h3 id="ctypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
+
+<p><!-- CL 256897 -->
+  I/O operations on closing or closed TLS connections can now be detected using
+  the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.  A typical use
+  would be <code>errors.Is(err, net.ErrClosed)</code>.  In earlier releases
+  the only way to reliably detect this case was to match the string returned
+  by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+</p>
+
+<h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
+
+<p><!-- CL 235078 -->
+  <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
+  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
+  now enforce string encoding restrictions for the fields <code>DNSNames</code>,
+  <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
+  contain strings with characters within the ASCII range.
 </p>
 
 <h3 id="net"><a href="/pkg/net/">net</a></h3>

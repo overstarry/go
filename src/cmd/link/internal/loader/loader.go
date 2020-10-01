@@ -63,6 +63,7 @@ type Reloc struct {
 func (rel Reloc) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
 func (rel Reloc) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
 func (rel Reloc) SetSym(s Sym)           { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+func (rel Reloc) IsMarker() bool         { return rel.Siz() == 0 }
 
 func (rel Reloc) SetType(t objabi.RelocType) {
 	if t != objabi.RelocType(uint8(t)) {
@@ -2152,11 +2153,11 @@ func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
 	l.npkgsyms = l.NSym()
 	// Preallocate some space (a few hundreds KB) for some symbols.
 	// As of Go 1.15, linking cmd/compile has ~8000 hashed64 symbols and
-	// ~13000 hashed symbols.
+	// ~27000 hashed symbols.
 	st := loadState{
 		l:            l,
 		hashed64Syms: make(map[uint64]symAndSize, 10000),
-		hashedSyms:   make(map[goobj.HashType]symAndSize, 15000),
+		hashedSyms:   make(map[goobj.HashType]symAndSize, 30000),
 	}
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, hashed64Def)
