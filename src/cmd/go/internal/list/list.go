@@ -66,26 +66,36 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         BinaryOnly    bool     // binary-only package (no longer supported)
         ForTest       string   // package is only for use in named test
         Export        string   // file containing export data (when using -export)
+        BuildID       string   // build ID of the compiled package (when using -export)
         Module        *Module  // info about package's containing module, if any (can be nil)
         Match         []string // command-line patterns matching this package
         DepOnly       bool     // package is only a dependency, not explicitly listed
 
         // Source files
-        GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-        CgoFiles        []string // .go source files that import "C"
-        CompiledGoFiles []string // .go files presented to compiler (when using -compiled)
-        IgnoredGoFiles  []string // .go source files ignored due to build constraints
-        CFiles          []string // .c source files
-        CXXFiles        []string // .cc, .cxx and .cpp source files
-        MFiles          []string // .m source files
-        HFiles          []string // .h, .hh, .hpp and .hxx source files
-        FFiles          []string // .f, .F, .for and .f90 Fortran source files
-        SFiles          []string // .s source files
-        SwigFiles       []string // .swig files
-        SwigCXXFiles    []string // .swigcxx files
-        SysoFiles       []string // .syso object files to add to archive
-        TestGoFiles     []string // _test.go files in package
-        XTestGoFiles    []string // _test.go files outside package
+        GoFiles         []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles        []string   // .go source files that import "C"
+        CompiledGoFiles []string   // .go files presented to compiler (when using -compiled)
+        IgnoredGoFiles  []string   // .go source files ignored due to build constraints
+        IgnoredOtherFiles []string // non-.go source files ignored due to build constraints
+        CFiles          []string   // .c source files
+        CXXFiles        []string   // .cc, .cxx and .cpp source files
+        MFiles          []string   // .m source files
+        HFiles          []string   // .h, .hh, .hpp and .hxx source files
+        FFiles          []string   // .f, .F, .for and .f90 Fortran source files
+        SFiles          []string   // .s source files
+        SwigFiles       []string   // .swig files
+        SwigCXXFiles    []string   // .swigcxx files
+        SysoFiles       []string   // .syso object files to add to archive
+        TestGoFiles     []string   // _test.go files in package
+        XTestGoFiles    []string   // _test.go files outside package
+
+        // Embedded files
+        EmbedPatterns      []string // //go:embed patterns
+        EmbedFiles         []string // files matched by EmbedPatterns
+        TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
+        TestEmbedFiles     []string // files matched by TestEmbedPatterns
+        XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
+        XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -298,7 +308,7 @@ For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
-For more about modules, see 'go help modules'.
+For more about modules, see https://golang.org/ref/mod.
 	`,
 }
 
@@ -325,6 +335,10 @@ var (
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
+	if *listFmt != "" && *listJson == true {
+		base.Fatalf("go list -f cannot be used with -json")
+	}
+
 	load.ModResolveTests = *listTest
 	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)
@@ -413,7 +427,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -m: not using modules")
 		}
 
-		modload.InitMod(ctx) // Parses go.mod and sets cfg.BuildMod.
+		modload.LoadModFile(ctx) // Sets cfg.BuildMod as a side-effect.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -437,12 +451,28 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		mods := modload.ListModules(ctx, args, *listU, *listVersions, *listRetracted)
+		var mode modload.ListMode
+		if *listU {
+			mode |= modload.ListU | modload.ListRetracted
+		}
+		if *listRetracted {
+			mode |= modload.ListRetracted
+		}
+		if *listVersions {
+			mode |= modload.ListVersions
+			if *listRetracted {
+				mode |= modload.ListRetractedVersions
+			}
+		}
+		mods, err := modload.ListModules(ctx, args, mode)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
 					base.Errorf("go list -m: %v", m.Error.Err)
 				}
+			}
+			if err != nil {
+				base.Errorf("go list -m: %v", err)
 			}
 			base.ExitIfErrors()
 		}
@@ -469,11 +499,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	load.IgnoreImports = *listFind
-	var pkgs []*load.Package
-	if *listE {
-		pkgs = load.PackagesAndErrors(ctx, args)
-	} else {
-		pkgs = load.Packages(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, args)
+	if !*listE {
+		w := 0
+		for _, pkg := range pkgs {
+			if pkg.Error != nil {
+				base.Errorf("%v", pkg.Error)
+				continue
+			}
+			pkgs[w] = pkg
+			w++
+		}
+		pkgs = pkgs[:w]
 		base.ExitIfErrors()
 	}
 
@@ -662,9 +699,14 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		if len(args) > 0 {
-			listU := false
-			listVersions := false
-			rmods := modload.ListModules(ctx, args, listU, listVersions, *listRetracted)
+			var mode modload.ListMode
+			if *listRetracted {
+				mode |= modload.ListRetracted
+			}
+			rmods, err := modload.ListModules(ctx, args, mode)
+			if err != nil && !*listE {
+				base.Errorf("go list -retracted: %v", err)
+			}
 			for i, arg := range args {
 				rmod := rmods[i]
 				for _, mod := range argToMods[arg] {

@@ -23,6 +23,7 @@ import (
 	"cmd/link/internal/sym"
 	"fmt"
 	"log"
+	"path"
 	"runtime"
 	"sort"
 	"strings"
@@ -455,12 +456,6 @@ func reversetree(list **dwarf.DWDie) {
 
 func newmemberoffsetattr(die *dwarf.DWDie, offs int32) {
 	newattr(die, dwarf.DW_AT_data_member_location, dwarf.DW_CLS_CONSTANT, int64(offs), nil)
-}
-
-// GDB doesn't like FORM_addr for AT_location, so emit a
-// location expression that evals to a const.
-func (d *dwctxt) newabslocexprattr(die *dwarf.DWDie, addr int64, symIdx loader.Sym) {
-	newattr(die, dwarf.DW_AT_location, dwarf.DW_CLS_ADDRESS, addr, dwSym(symIdx))
 }
 
 func (d *dwctxt) lookupOrDiag(n string) loader.Sym {
@@ -1019,25 +1014,6 @@ func (d *dwctxt) synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
 	}
 }
 
-func (d *dwctxt) dwarfDefineGlobal(ctxt *Link, symIdx loader.Sym, str string, v int64, gotype loader.Sym) {
-	// Find a suitable CU DIE to include the global.
-	// One would think it's as simple as just looking at the unit, but that might
-	// not have any reachable code. So, we go to the runtime's CU if our unit
-	// isn't otherwise reachable.
-	unit := d.ldr.SymUnit(symIdx)
-	if unit == nil {
-		unit = ctxt.runtimeCU
-	}
-	ver := d.ldr.SymVersion(symIdx)
-	dv := d.newdie(unit.DWInfo, dwarf.DW_ABRV_VARIABLE, str, int(ver))
-	d.newabslocexprattr(dv, v, symIdx)
-	if d.ldr.SymVersion(symIdx) < sym.SymVerStatic {
-		newattr(dv, dwarf.DW_AT_external, dwarf.DW_CLS_FLAG, 1, 0)
-	}
-	dt := d.defgotype(gotype)
-	d.newrefattr(dv, dwarf.DW_AT_type, dt)
-}
-
 // createUnitLength creates the initial length field with value v and update
 // offset of unit_length if needed.
 func (d *dwctxt) createUnitLength(su *loader.SymbolBuilder, v uint64) {
@@ -1173,13 +1149,81 @@ func expandFile(fname string) string {
 	return expandGoroot(fname)
 }
 
-// writelines collects up and chai,ns together the symbols needed to
+// writeDirFileTables emits the portion of the DWARF line table
+// prologue containing the include directories and file names,
+// described in section 6.2.4 of the DWARF 4 standard. It walks the
+// filepaths for the unit to discover any common directories, which
+// are emitted to the directory table first, then the file table is
+// emitted after that.
+func (d *dwctxt) writeDirFileTables(unit *sym.CompilationUnit, lsu *loader.SymbolBuilder) {
+	type fileDir struct {
+		base string
+		dir  int
+	}
+	dirNums := make(map[string]int)
+	dirs := []string{""}
+	files := []fileDir{}
+
+	// Preprocess files to collect directories. This assumes that the
+	// file table is already de-duped.
+	for i, name := range unit.FileTable {
+		name := expandFile(name)
+		if len(name) == 0 {
+			// Can't have empty filenames, and having a unique
+			// filename is quite useful for debugging.
+			name = fmt.Sprintf("<missing>_%d", i)
+		}
+		// Note the use of "path" here and not "filepath". The compiler
+		// hard-codes to use "/" in DWARF paths (even for Windows), so we
+		// want to maintain that here.
+		file := path.Base(name)
+		dir := path.Dir(name)
+		dirIdx, ok := dirNums[dir]
+		if !ok && dir != "." {
+			dirIdx = len(dirNums) + 1
+			dirNums[dir] = dirIdx
+			dirs = append(dirs, dir)
+		}
+		files = append(files, fileDir{base: file, dir: dirIdx})
+
+		// We can't use something that may be dead-code
+		// eliminated from a binary here. proc.go contains
+		// main and the scheduler, so it's not going anywhere.
+		if i := strings.Index(name, "runtime/proc.go"); i >= 0 {
+			d.dwmu.Lock()
+			if gdbscript == "" {
+				k := strings.Index(name, "runtime/proc.go")
+				gdbscript = name[:k] + "runtime/runtime-gdb.py"
+			}
+			d.dwmu.Unlock()
+		}
+	}
+
+	// Emit directory section. This is a series of nul terminated
+	// strings, followed by a single zero byte.
+	lsDwsym := dwSym(lsu.Sym())
+	for k := 1; k < len(dirs); k++ {
+		d.AddString(lsDwsym, dirs[k])
+	}
+	lsu.AddUint8(0) // terminator
+
+	// Emit file section.
+	for k := 0; k < len(files); k++ {
+		d.AddString(lsDwsym, files[k].base)
+		dwarf.Uleb128put(d, lsDwsym, int64(files[k].dir))
+		lsu.AddUint8(0) // mtime
+		lsu.AddUint8(0) // length
+	}
+	lsu.AddUint8(0) // terminator
+}
+
+// writelines collects up and chains together the symbols needed to
 // form the DWARF line table for the specified compilation unit,
 // returning a list of symbols. The returned list will include an
-// initial symbol containing the line table header and prolog (with
+// initial symbol containing the line table header and prologue (with
 // file table), then a series of compiler-emitted line table symbols
 // (one per live function), and finally an epilog symbol containing an
-// end-of-sequence operator. The prolog and epilog symbols are passed
+// end-of-sequence operator. The prologue and epilog symbols are passed
 // in (having been created earlier); here we add content to them.
 func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []loader.Sym {
 	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
@@ -1220,39 +1264,11 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []
 	lsu.AddUint8(0)                // standard_opcode_lengths[8]
 	lsu.AddUint8(1)                // standard_opcode_lengths[9]
 	lsu.AddUint8(0)                // standard_opcode_lengths[10]
-	lsu.AddUint8(0)                // include_directories  (empty)
 
-	// Copy over the file table.
-	fileNums := make(map[string]int)
-	for i, name := range unit.FileTable {
-		name := expandFile(name)
-		if len(name) == 0 {
-			// Can't have empty filenames, and having a unique
-			// filename is quite useful for debugging.
-			name = fmt.Sprintf("<missing>_%d", i)
-		}
-		fileNums[name] = i + 1
-		d.AddString(lsDwsym, name)
-		lsu.AddUint8(0)
-		lsu.AddUint8(0)
-		lsu.AddUint8(0)
+	// Call helper to emit dir and file sections.
+	d.writeDirFileTables(unit, lsu)
 
-		// We can't use something that may be dead-code
-		// eliminated from a binary here. proc.go contains
-		// main and the scheduler, so it's not going anywhere.
-		if i := strings.Index(name, "runtime/proc.go"); i >= 0 {
-			d.dwmu.Lock()
-			if gdbscript == "" {
-				k := strings.Index(name, "runtime/proc.go")
-				gdbscript = name[:k] + "runtime/runtime-gdb.py"
-			}
-			d.dwmu.Unlock()
-		}
-	}
-
-	// 4 zeros: the string termination + 3 fields.
-	lsu.AddUint8(0)
-	// terminate file_names.
+	// capture length at end of file names.
 	headerend = lsu.Size()
 	unitlen := lsu.Size() - unitstart
 
@@ -1413,7 +1429,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 		// Emit a FDE, Section 6.4.1.
 		// First build the section contents into a byte buffer.
 		deltaBuf = deltaBuf[:0]
-		if haslr && d.ldr.AttrTopFrame(fn) {
+		if haslr && fi.TopFrame() {
 			// Mark the link register as having an undefined value.
 			// This stops call stack unwinders progressing any further.
 			// TODO: similar mark on non-LR architectures.
@@ -1421,7 +1437,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 			deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
 		}
 
-		for pcsp.Init(fpcsp); !pcsp.Done; pcsp.Next() {
+		for pcsp.Init(d.linkctxt.loader.Data(fpcsp)); !pcsp.Done; pcsp.Next() {
 			nextpc := pcsp.NextPC
 
 			// pciterinit goes up to the end of the function,
@@ -1439,7 +1455,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 				spdelta += int64(d.arch.PtrSize)
 			}
 
-			if haslr && !d.ldr.AttrTopFrame(fn) {
+			if haslr && !fi.TopFrame() {
 				// TODO(bryanpkc): This is imprecise. In general, the instruction
 				// that stores the return address to the stack frame is not the
 				// same one that allocates the frame.
@@ -1511,7 +1527,7 @@ func appendSyms(syms []loader.Sym, src []sym.LoaderSym) []loader.Sym {
 
 func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, infoEpilog loader.Sym) []loader.Sym {
 	syms := []loader.Sym{}
-	if len(u.Textp) == 0 && u.DWInfo.Child == nil {
+	if len(u.Textp) == 0 && u.DWInfo.Child == nil && len(u.VarDIEs) == 0 {
 		return syms
 	}
 
@@ -1542,6 +1558,7 @@ func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, inf
 	if u.Consts != 0 {
 		cu = append(cu, loader.Sym(u.Consts))
 	}
+	cu = appendSyms(cu, u.VarDIEs)
 	var cusize int64
 	for _, child := range cu {
 		cusize += int64(len(d.ldr.Data(child)))
@@ -1866,10 +1883,11 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		checkStrictDups = 1
 	}
 
-	// Create DIEs for global variables and the types they use.
-	// FIXME: ideally this should be done in the compiler, since
-	// for globals there isn't any abiguity about which package
-	// a global belongs to.
+	// Make a pass through all data symbols, looking for those
+	// corresponding to reachable, Go-generated, user-visible
+	// global variables. For each global of this sort, locate
+	// the corresponding compiler-generated DIE symbol and tack
+	// it onto the list associated with the unit.
 	for idx := loader.Sym(1); idx < loader.Sym(d.ldr.NDef()); idx++ {
 		if !d.ldr.AttrReachable(idx) ||
 			d.ldr.AttrNotInSymbolTable(idx) ||
@@ -1884,7 +1902,8 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			continue
 		}
 		// Skip things with no type
-		if d.ldr.SymGoType(idx) == 0 {
+		gt := d.ldr.SymGoType(idx)
+		if gt == 0 {
 			continue
 		}
 		// Skip file local symbols (this includes static tmps, stack
@@ -1898,10 +1917,20 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			continue
 		}
 
-		// Create DIE for global.
-		sv := d.ldr.SymValue(idx)
-		gt := d.ldr.SymGoType(idx)
-		d.dwarfDefineGlobal(ctxt, idx, sn, sv, gt)
+		// Find compiler-generated DWARF info sym for global in question,
+		// and tack it onto the appropriate unit.  Note that there are
+		// circumstances under which we can't find the compiler-generated
+		// symbol-- this typically happens as a result of compiler options
+		// (e.g. compile package X with "-dwarf=0").
+
+		// FIXME: use an aux sym or a relocation here instead of a
+		// name lookup.
+		varDIE := d.ldr.Lookup(dwarf.InfoPrefix+sn, 0)
+		if varDIE != 0 {
+			unit := d.ldr.SymUnit(idx)
+			d.defgotype(gt)
+			unit.VarDIEs = append(unit.VarDIEs, sym.LoaderSym(varDIE))
+		}
 	}
 
 	d.synthesizestringtypes(ctxt, dwtypes.Child)
@@ -2259,12 +2288,6 @@ var dwsectCUSize map[string]uint64
 // getDwsectCUSize retrieves the corresponding package size inside the current section.
 func getDwsectCUSize(sname string, pkgname string) uint64 {
 	return dwsectCUSize[sname+"."+pkgname]
-}
-
-func saveDwsectCUSize(sname string, pkgname string, size uint64) {
-	dwsectCUSizeMu.Lock()
-	defer dwsectCUSizeMu.Unlock()
-	dwsectCUSize[sname+"."+pkgname] = size
 }
 
 func addDwsectCUSize(sname string, pkgname string, size uint64) {

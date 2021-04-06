@@ -9,6 +9,7 @@ package work
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -24,6 +25,9 @@ func BuildInit() {
 	modload.Init()
 	instrumentInit()
 	buildModeInit()
+	if err := fsys.Init(base.Cwd); err != nil {
+		base.Fatalf("go: %v", err)
+	}
 
 	// Make sure -pkgdir is absolute, because we run commands
 	// in different directories.
@@ -37,18 +41,20 @@ func BuildInit() {
 		cfg.BuildPkgdir = p
 	}
 
+	// Make sure CC and CXX are absolute paths
+	for _, key := range []string{"CC", "CXX"} {
+		if path := cfg.Getenv(key); !filepath.IsAbs(path) && path != "" && path != filepath.Base(path) {
+			base.Fatalf("go %s: %s environment variable is relative; must be absolute path: %s\n", flag.Args()[0], key, path)
+		}
+	}
+
 	// For each experiment that has been enabled in the toolchain, define a
 	// build tag with the same name but prefixed by "goexperiment." which can be
 	// used for compiling alternative files for the experiment. This allows
 	// changes for the experiment, like extra struct fields in the runtime,
-	// without affecting the base non-experiment code at all. [2:] strips the
-	// leading "X:" from objabi.Expstring().
-	exp := objabi.Expstring()[2:]
-	if exp != "none" {
-		experiments := strings.Split(exp, ",")
-		for _, expt := range experiments {
-			cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "goexperiment."+expt)
-		}
+	// without affecting the base non-experiment code at all.
+	for _, expt := range strings.Split(objabi.GOEXPERIMENT, ",") {
+		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "goexperiment."+expt)
 	}
 }
 
@@ -68,7 +74,7 @@ func instrumentInit() {
 	}
 	if cfg.BuildRace {
 		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n", flag.Args()[0])
 			base.SetExitStatus(2)
 			base.Exit()
 		}
@@ -157,7 +163,10 @@ func buildModeInit() {
 			ldBuildmode = "pie"
 		case "windows":
 			ldBuildmode = "pie"
-		case "darwin", "ios":
+		case "ios":
+			codegenArg = "-shared"
+			ldBuildmode = "pie"
+		case "darwin":
 			switch cfg.Goarch {
 			case "arm64":
 				codegenArg = "-shared"
@@ -227,7 +236,8 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
+			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1",
+				"-linkshared")
 			codegenArg = "-dynlink"
 			forcedGcflags = append(forcedGcflags, "-linkshared")
 			// TODO(mwhudson): remove -w when that gets fixed in linker.

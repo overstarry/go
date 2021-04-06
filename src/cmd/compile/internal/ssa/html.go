@@ -9,9 +9,9 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"html"
+	exec "internal/execabs"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -28,18 +28,23 @@ type HTMLWriter struct {
 }
 
 func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
+	path = strings.Replace(path, "/", string(filepath.Separator), -1)
 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		f.Fatalf("%v", err)
 	}
-	pwd, err := os.Getwd()
-	if err != nil {
-		f.Fatalf("%v", err)
+	reportPath := path
+	if !filepath.IsAbs(reportPath) {
+		pwd, err := os.Getwd()
+		if err != nil {
+			f.Fatalf("%v", err)
+		}
+		reportPath = filepath.Join(pwd, path)
 	}
 	html := HTMLWriter{
 		w:    out,
 		Func: f,
-		path: filepath.Join(pwd, path),
+		path: reportPath,
 		dot:  newDotWriter(cfgMask),
 	}
 	html.start()
@@ -1059,7 +1064,7 @@ func (f *Func) HTML(phase string, dot *dotWriter) string {
 	p := htmlFuncPrinter{w: buf}
 	fprintFunc(p, f)
 
-	// fprintFunc(&buf, f) // TODO: HTML, not text, <br /> for line breaks, etc.
+	// fprintFunc(&buf, f) // TODO: HTML, not text, <br> for line breaks, etc.
 	fmt.Fprint(buf, "</code>")
 	return buf.String()
 }

@@ -12,7 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -23,7 +23,6 @@ import (
 	"sync"
 	"testing"
 
-	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
 	"cmd/go/internal/txtar"
@@ -74,12 +73,12 @@ func StartProxy() {
 var modList []module.Version
 
 func readModList() {
-	infos, err := ioutil.ReadDir("testdata/mod")
+	files, err := os.ReadDir("testdata/mod")
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, info := range infos {
-		name := info.Name()
+	for _, f := range files {
+		name := f.Name()
 		if !strings.HasSuffix(name, ".txt") {
 			continue
 		}
@@ -229,7 +228,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 			if m.Path != modPath {
 				continue
 			}
-			if modfetch.IsPseudoVersion(m.Version) && (latestPseudo == "" || semver.Compare(latestPseudo, m.Version) > 0) {
+			if module.IsPseudoVersion(m.Version) && (latestPseudo == "" || semver.Compare(latestPseudo, m.Version) > 0) {
 				latestPseudo = m.Version
 			} else if semver.Prerelease(m.Version) != "" && (latestPrerelease == "" || semver.Compare(latestPrerelease, m.Version) > 0) {
 				latestPrerelease = m.Version
@@ -282,7 +281,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			found = true
-			if !modfetch.IsPseudoVersion(m.Version) {
+			if !module.IsPseudoVersion(m.Version) {
 				if err := module.Check(m.Path, m.Version); err == nil {
 					fmt.Fprintf(w, "%s\n", m.Version)
 				}
@@ -315,7 +314,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		for _, m := range modList {
 			if m.Path == path && semver.Compare(best, m.Version) < 0 {
 				var hash string
-				if modfetch.IsPseudoVersion(m.Version) {
+				if module.IsPseudoVersion(m.Version) {
 					hash = m.Version[strings.LastIndex(m.Version, "-")+1:]
 				} else {
 					hash = findHash(m)
@@ -335,7 +334,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		if testing.Verbose() {
 			fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s: %v\n", path, vers, err)
 		}
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			http.NotFound(w, r)
 		} else {
 			http.Error(w, "cannot load archive", 500)
@@ -362,7 +361,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 			var buf bytes.Buffer
 			z := zip.NewWriter(&buf)
 			for _, f := range a.Files {
-				if strings.HasPrefix(f.Name, ".") {
+				if f.Name == ".info" || f.Name == ".mod" || f.Name == ".zip" {
 					continue
 				}
 				var zipName string
@@ -443,7 +442,7 @@ func readArchive(path, vers string) (*txtar.Archive, error) {
 		return a
 	}).(*txtar.Archive)
 	if a == nil {
-		return nil, os.ErrNotExist
+		return nil, fs.ErrNotExist
 	}
 	return a, nil
 }
@@ -470,13 +469,13 @@ func proxyGoSum(path, vers string) ([]byte, error) {
 	}
 	h1, err := dirhash.Hash1(names, func(name string) (io.ReadCloser, error) {
 		data := files[name]
-		return ioutil.NopCloser(bytes.NewReader(data)), nil
+		return io.NopCloser(bytes.NewReader(data)), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	h1mod, err := dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewReader(gomod)), nil
+		return io.NopCloser(bytes.NewReader(gomod)), nil
 	})
 	if err != nil {
 		return nil, err

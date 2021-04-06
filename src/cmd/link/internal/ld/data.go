@@ -55,6 +55,7 @@ func isRuntimeDepPkg(pkg string) bool {
 	switch pkg {
 	case "runtime",
 		"sync/atomic",      // runtime may call to sync/atomic, due to go:linkname
+		"internal/abi",     // used by reflectcall (and maybe more)
 		"internal/bytealg", // for IndexByte
 		"internal/cpu":     // for cpu features
 		return true
@@ -106,14 +107,12 @@ func trampoline(ctxt *Link, s loader.Sym) {
 		}
 		rs = ldr.ResolveABIAlias(rs)
 		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
-			if ldr.SymPkg(rs) != ldr.SymPkg(s) {
-				if !isRuntimeDepPkg(ldr.SymPkg(s)) || !isRuntimeDepPkg(ldr.SymPkg(rs)) {
-					ctxt.Errorf(s, "unresolved inter-package jump to %s(%s) from %s", ldr.SymName(rs), ldr.SymPkg(rs), ldr.SymPkg(s))
-				}
-				// runtime and its dependent packages may call to each other.
-				// they are fine, as they will be laid down together.
+			if ldr.SymPkg(rs) == ldr.SymPkg(s) {
+				continue // symbols in the same package are laid out together
 			}
-			continue
+			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) {
+				continue // runtime packages are laid out together
+			}
 		}
 
 		thearch.Trampoline(ctxt, ldr, ri, rs, s)
@@ -166,6 +165,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		rs := r.Sym()
 		rs = ldr.ResolveABIAlias(rs)
 		rt := r.Type()
+		weak := r.Weak()
 		if off < 0 || off+siz > int32(len(P)) {
 			rname := ""
 			if rs != 0 {
@@ -206,13 +206,13 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		}
 
 		// We need to be able to reference dynimport symbols when linking against
-		// shared libraries, and Solaris, Darwin and AIX need it always
-		if !target.IsSolaris() && !target.IsDarwin() && !target.IsAIX() && rs != 0 && rst == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !ldr.AttrSubSymbol(rs) {
+		// shared libraries, and AIX, Darwin, OpenBSD and Solaris always need it.
+		if !target.IsAIX() && !target.IsDarwin() && !target.IsSolaris() && !target.IsOpenbsd() && rs != 0 && rst == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !ldr.AttrSubSymbol(rs) {
 			if !(target.IsPPC64() && target.IsExternal() && ldr.SymName(rs) == ".TOC.") {
 				st.err.Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", ldr.SymName(rs), rst, rst, rt, sym.RelocName(target.Arch, rt))
 			}
 		}
-		if rs != 0 && rst != sym.STLSBSS && rt != objabi.R_WEAKADDROFF && rt != objabi.R_METHODOFF && !ldr.AttrReachable(rs) {
+		if rs != 0 && rst != sym.STLSBSS && !weak && rt != objabi.R_METHODOFF && !ldr.AttrReachable(rs) {
 			st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
 		}
 
@@ -306,6 +306,10 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
 			}
 		case objabi.R_ADDR:
+			if weak && !ldr.AttrReachable(rs) {
+				// Redirect it to runtime.unreachableMethod, which will throw if called.
+				rs = syms.unreachableMethod
+			}
 			if target.IsExternal() {
 				nExtReloc++
 
@@ -388,18 +392,18 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				break
 			}
 			o = ldr.SymValue(rs) + r.Add() - int64(ldr.SymSect(rs).Vaddr)
-		case objabi.R_WEAKADDROFF, objabi.R_METHODOFF:
+		case objabi.R_METHODOFF:
 			if !ldr.AttrReachable(rs) {
-				if rt == objabi.R_METHODOFF {
-					// Set it to a sentinel value. The runtime knows this is not pointing to
-					// anything valid.
-					o = -1
-					break
-				}
-				continue
+				// Set it to a sentinel value. The runtime knows this is not pointing to
+				// anything valid.
+				o = -1
+				break
 			}
 			fallthrough
 		case objabi.R_ADDROFF:
+			if weak && !ldr.AttrReachable(rs) {
+				continue
+			}
 			// The method offset tables using this relocation expect the offset to be relative
 			// to the start of the first text section, even if there are multiple.
 			if ldr.SymSect(rs).Name == ".text" {
@@ -507,7 +511,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 
 		if target.IsPPC64() || target.IsS390X() {
 			if rv != sym.RV_NONE {
-				o = thearch.Archrelocvariant(target, ldr, r, rv, s, o)
+				o = thearch.Archrelocvariant(target, ldr, r, rv, s, o, P)
 			}
 		}
 
@@ -586,6 +590,9 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 	case objabi.R_ADDR:
 		// set up addend for eventual relocation via outer symbol.
 		rs := ldr.ResolveABIAlias(r.Sym())
+		if r.Weak() && !ldr.AttrReachable(rs) {
+			rs = ctxt.ArchSyms.unreachableMethod
+		}
 		rs, off := FoldSubSymbolOffset(ldr, rs)
 		rr.Xadd = r.Add() + off
 		rr.Xsym = rs
@@ -636,7 +643,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 		return ExtrelocSimple(ldr, r), true
 
 	// These reloc types don't need external relocations.
-	case objabi.R_ADDROFF, objabi.R_WEAKADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
+	case objabi.R_ADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
 		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF:
 		return rr, false
 	}
@@ -711,9 +718,8 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 		if targ == 0 {
 			continue
 		}
-		rt := r.Type()
 		if !ctxt.loader.AttrReachable(targ) {
-			if rt == objabi.R_WEAKADDROFF {
+			if r.Weak() {
 				continue
 			}
 			ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s",
@@ -787,6 +793,10 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
 		if r.IsMarker() {
 			continue // skip marker relocations
 		}
+		rSym := r.Sym()
+		if r.Weak() && !ldr.AttrReachable(rSym) {
+			continue
+		}
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
@@ -795,7 +805,6 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
 			continue
 		}
 
-		rSym := r.Sym()
 		if rSym != 0 && ldr.SymType(rSym) == sym.SDYNIMPORT || r.Type() >= objabi.ElfRelocOffset {
 			if rSym != 0 && !ldr.AttrReachable(rSym) {
 				ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s", ldr.SymName(rSym))
@@ -951,6 +960,9 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 		}
 		P := out.WriteSym(ldr, s)
 		st.relocsym(s, P)
+		if f, ok := ctxt.generatorSyms[s]; ok {
+			f(ctxt, s)
+		}
 		addr += int64(len(P))
 		siz := ldr.SymSize(s)
 		if addr < val+siz {
@@ -1812,6 +1824,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := state.datsize
 		state.assignToSection(sect, symn, sym.SRODATA)
+		setCarrierSize(symn, state.datsize-symnStartValue)
 		if ctxt.HeadType == objabi.Haix {
 			// Read-only symbols might be wrapped inside their outer
 			// symbol.
@@ -1899,6 +1912,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 				}
 			}
 			state.assignToSection(sect, symn, sym.SRODATA)
+			setCarrierSize(symn, state.datsize-symnStartValue)
 			if ctxt.HeadType == objabi.Haix {
 				// Read-only symbols might be wrapped inside their outer
 				// symbol.
@@ -1941,8 +1955,12 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pcheader", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.funcnametab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab_old", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.cutab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.filetab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
+	setCarrierSize(sym.SPCLNTAB, int64(sect.Length))
 	if ctxt.HeadType == objabi.Haix {
 		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
 	}
@@ -2185,7 +2203,7 @@ func (ctxt *Link) textaddress() {
 		ctxt.Textp[0] = text
 	}
 
-	va := uint64(*FlagTextAddr)
+	va := uint64(Rnd(*FlagTextAddr, int64(Funcalign)))
 	n := 1
 	sect.Vaddr = va
 	ntramps := 0
@@ -2211,7 +2229,7 @@ func (ctxt *Link) textaddress() {
 		// Set the address of the start/end symbols, if not already
 		// (i.e. not darwin+dynlink or AIX+external, see above).
 		ldr.SetSymValue(etext, int64(va))
-		ldr.SetSymValue(text, *FlagTextAddr)
+		ldr.SetSymValue(text, int64(Segtext.Sections[0].Vaddr))
 	}
 
 	// merge tramps into Textp, keeping Textp in address order
@@ -2525,7 +2543,10 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
 	ctxt.defineInternal("runtime.pcheader", sym.SRODATA)
 	ctxt.defineInternal("runtime.funcnametab", sym.SRODATA)
-	ctxt.defineInternal("runtime.pclntab_old", sym.SRODATA)
+	ctxt.defineInternal("runtime.cutab", sym.SRODATA)
+	ctxt.defineInternal("runtime.filetab", sym.SRODATA)
+	ctxt.defineInternal("runtime.pctab", sym.SRODATA)
+	ctxt.defineInternal("runtime.functab", sym.SRODATA)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
 	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))

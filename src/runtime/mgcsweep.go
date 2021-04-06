@@ -123,6 +123,8 @@ func (h *mheap) nextSpanForSweep() *mspan {
 //
 //go:nowritebarrier
 func finishsweep_m() {
+	assertWorldStopped()
+
 	// Sweeping must be complete before marking commences, so
 	// sweep any unswept spans. If this is a concurrent GC, there
 	// shouldn't be any spans left to sweep, so this should finish
@@ -151,13 +153,13 @@ func finishsweep_m() {
 	nextMarkBitArenaEpoch()
 }
 
-func bgsweep(c chan int) {
+func bgsweep() {
 	sweep.g = getg()
 
 	lockInit(&sweep.lock, lockRankSweep)
 	lock(&sweep.lock)
 	sweep.parked = true
-	c <- 1
+	gcenable_setup <- 1
 	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
 
 	for {
@@ -337,8 +339,6 @@ func (s *mspan) sweep(preserve bool) bool {
 	spc := s.spanclass
 	size := s.elemsize
 
-	c := _g_.m.p.ptr().mcache
-
 	// The allocBits indicate which unmarked objects don't need to be
 	// processed since they were free at the end of the last GC cycle
 	// and were not allocated since then.
@@ -356,11 +356,10 @@ func (s *mspan) sweep(preserve bool) bool {
 	//    If such object is not marked, we need to queue all finalizers at once.
 	// Both 1 and 2 are possible at the same time.
 	hadSpecials := s.specials != nil
-	specialp := &s.specials
-	special := *specialp
-	for special != nil {
+	siter := newSpecialsIter(s)
+	for siter.valid() {
 		// A finalizer can be set for an inner byte of an object, find object beginning.
-		objIndex := uintptr(special.offset) / size
+		objIndex := uintptr(siter.s.offset) / size
 		p := s.base() + objIndex*size
 		mbits := s.markBitsForIndex(objIndex)
 		if !mbits.isMarked() {
@@ -368,7 +367,7 @@ func (s *mspan) sweep(preserve bool) bool {
 			// Pass 1: see if it has at least one finalizer.
 			hasFin := false
 			endOffset := p - s.base() + size
-			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
+			for tmp := siter.s; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
 				if tmp.kind == _KindSpecialFinalizer {
 					// Stop freeing of object if it has a finalizer.
 					mbits.setMarkedNonAtomic()
@@ -377,27 +376,31 @@ func (s *mspan) sweep(preserve bool) bool {
 				}
 			}
 			// Pass 2: queue all finalizers _or_ handle profile record.
-			for special != nil && uintptr(special.offset) < endOffset {
+			for siter.valid() && uintptr(siter.s.offset) < endOffset {
 				// Find the exact byte for which the special was setup
 				// (as opposed to object beginning).
+				special := siter.s
 				p := s.base() + uintptr(special.offset)
 				if special.kind == _KindSpecialFinalizer || !hasFin {
-					// Splice out special record.
-					y := special
-					special = special.next
-					*specialp = special
-					freespecial(y, unsafe.Pointer(p), size)
+					siter.unlinkAndNext()
+					freeSpecial(special, unsafe.Pointer(p), size)
 				} else {
-					// This is profile record, but the object has finalizers (so kept alive).
-					// Keep special record.
-					specialp = &special.next
-					special = *specialp
+					// The object has finalizers, so we're keeping it alive.
+					// All other specials only apply when an object is freed,
+					// so just keep the special record.
+					siter.next()
 				}
 			}
 		} else {
-			// object is still live: keep special record
-			specialp = &special.next
-			special = *specialp
+			// object is still live
+			if siter.s.kind == _KindSpecialReachable {
+				special := siter.unlinkAndNext()
+				(*specialReachable)(unsafe.Pointer(special)).reachable = true
+				freeSpecial(special, unsafe.Pointer(p), size)
+			} else {
+				// keep special record
+				siter.next()
+			}
 		}
 	}
 	if hadSpecials && s.specials == nil {
@@ -503,7 +506,9 @@ func (s *mspan) sweep(preserve bool) bool {
 			// wasn't totally filled, but then swept, still has all of its
 			// free slots zeroed.
 			s.needzero = 1
-			c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
+			stats := memstats.heapStats.acquire()
+			atomic.Xadduintptr(&stats.smallFreeCount[spc.sizeclass()], uintptr(nfreed))
+			memstats.heapStats.release()
 		}
 		if !preserve {
 			// The caller may not have removed this span from whatever
@@ -548,8 +553,10 @@ func (s *mspan) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-			c.local_nlargefree++
-			c.local_largefree += size
+			stats := memstats.heapStats.acquire()
+			atomic.Xadduintptr(&stats.largeFreeCount, 1)
+			atomic.Xadduintptr(&stats.largeFree, size)
+			memstats.heapStats.release()
 			return true
 		}
 

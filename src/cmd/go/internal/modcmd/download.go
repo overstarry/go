@@ -52,7 +52,9 @@ corresponding to this Go struct:
 
 The -x flag causes download to print the commands download executes.
 
-See 'go help modules' for more about module queries.
+See https://golang.org/ref/mod#go-mod-download for more about 'go mod download'.
+
+See https://golang.org/ref/mod#version-queries for more about version queries.
 	`,
 }
 
@@ -87,13 +89,12 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
 		args = []string{"all"}
 	} else if modload.HasModRoot() {
-		modload.InitMod(ctx) // to fill Target
-		targetAtLatest := modload.Target.Path + "@latest"
+		modload.LoadModFile(ctx) // to fill Target
 		targetAtUpgrade := modload.Target.Path + "@upgrade"
 		targetAtPatch := modload.Target.Path + "@patch"
 		for _, arg := range args {
 			switch arg {
-			case modload.Target.Path, targetAtLatest, targetAtUpgrade, targetAtPatch:
+			case modload.Target.Path, targetAtUpgrade, targetAtPatch:
 				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
 			}
 		}
@@ -131,12 +132,10 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	var mods []*moduleJSON
-	listU := false
-	listVersions := false
-	listRetractions := false
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	for _, info := range modload.ListModules(ctx, args, listU, listVersions, listRetractions) {
+	infos, infosErr := modload.ListModules(ctx, args, 0)
+	for _, info := range infos {
 		if info.Replace != nil {
 			info = info.Replace
 		}
@@ -170,7 +169,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, m := range mods {
 			b, err := json.MarshalIndent(m, "", "\t")
 			if err != nil {
-				base.Fatalf("%v", err)
+				base.Fatalf("go mod download: %v", err)
 			}
 			os.Stdout.Write(append(b, '\n'))
 			if m.Error != "" {
@@ -180,12 +179,19 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	} else {
 		for _, m := range mods {
 			if m.Error != "" {
-				base.Errorf("%s", m.Error)
+				base.Errorf("go mod download: %v", m.Error)
 			}
 		}
 		base.ExitIfErrors()
 	}
 
 	// Update go.mod and especially go.sum if needed.
-	modload.WriteGoMod()
+	modload.WriteGoMod(ctx)
+
+	// If there was an error matching some of the requested packages, emit it now
+	// (after we've written the checksums for the modules that were downloaded
+	// successfully).
+	if infosErr != nil {
+		base.Errorf("go mod download: %v", infosErr)
+	}
 }

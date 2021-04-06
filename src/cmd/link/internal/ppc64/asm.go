@@ -121,16 +121,21 @@ func genplt(ctxt *ld.Link, ldr *loader.Loader) {
 			// Update the relocation to use the call stub
 			r.SetSym(stub.Sym())
 
-			// make sure the data is writeable
-			if ldr.AttrReadOnly(s) {
-				panic("can't write to read-only sym data")
-			}
+			// Make the symbol writeable so we can fixup toc.
+			su := ldr.MakeSymbolUpdater(s)
+			su.MakeWritable()
+			p := su.Data()
 
-			// Restore TOC after bl. The compiler put a
-			// nop here for us to overwrite.
-			sp := ldr.Data(s)
+			// Check for toc restore slot (a nop), and replace with toc restore.
+			var nop uint32
+			if len(p) >= int(r.Off()+8) {
+				nop = ctxt.Arch.ByteOrder.Uint32(p[r.Off()+4:])
+			}
+			if nop != 0x60000000 {
+				ldr.Errorf(s, "Symbol %s is missing toc restoration slot at offset %d", ldr.SymName(s), r.Off()+4)
+			}
 			const o1 = 0xe8410018 // ld r2,24(r1)
-			ctxt.Arch.ByteOrder.PutUint32(sp[r.Off()+4:], o1)
+			ctxt.Arch.ByteOrder.PutUint32(p[r.Off()+4:], o1)
 		}
 	}
 	// Put call stubs at the beginning (instead of the end).
@@ -313,7 +318,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 
 			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
-			rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_PPC64_ADDR64)))
+			rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_PPC64_ADDR64)))
 			rela.AddUint64(target.Arch, uint64(r.Add()))
 			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
 		}
@@ -656,13 +661,19 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)
-	t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+	var t int64
+	// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
+	// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
+	// in dependency order.
+	if ldr.SymValue(rs) != 0 {
+		t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+	}
 	switch r.Type() {
 	case objabi.R_CALLPOWER:
 
 		// If branch offset is too far then create a trampoline.
 
-		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			var tramp loader.Sym
 			for i := 0; ; i++ {
 
@@ -749,7 +760,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 
 		// With external linking, the target address must be
 		// relocated using LO and HA
-		if ctxt.IsExternal() {
+		if ctxt.IsExternal() || ldr.SymValue(target) == 0 {
 			r, _ := tramp.AddRel(objabi.R_ADDRPOWER)
 			r.SetOff(0)
 			r.SetSiz(8) // generates 2 relocations: HA + LO
@@ -853,7 +864,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, nExtReloc, false
 }
 
-func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) (relocatedOffset int64) {
+func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64, p []byte) (relocatedOffset int64) {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	switch rv & sym.RV_TYPE_MASK {
 	default:
@@ -869,9 +880,10 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 			// overflow depends on the instruction
 			var o1 uint32
 			if target.IsBigEndian() {
-				o1 = binary.BigEndian.Uint32(ldr.Data(s)[r.Off()-2:])
+				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
+
 			} else {
-				o1 = binary.LittleEndian.Uint32(ldr.Data(s)[r.Off():])
+				o1 = binary.LittleEndian.Uint32(p[r.Off():])
 			}
 			switch o1 >> 26 {
 			case 24, // ori
@@ -903,9 +915,9 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 			// overflow depends on the instruction
 			var o1 uint32
 			if target.IsBigEndian() {
-				o1 = binary.BigEndian.Uint32(ldr.Data(s)[r.Off()-2:])
+				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
 			} else {
-				o1 = binary.LittleEndian.Uint32(ldr.Data(s)[r.Off():])
+				o1 = binary.LittleEndian.Uint32(p[r.Off():])
 			}
 			switch o1 >> 26 {
 			case 25, // oris
@@ -927,9 +939,9 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 	case sym.RV_POWER_DS:
 		var o1 uint32
 		if target.IsBigEndian() {
-			o1 = uint32(binary.BigEndian.Uint16(ldr.Data(s)[r.Off():]))
+			o1 = uint32(binary.BigEndian.Uint16(p[r.Off():]))
 		} else {
-			o1 = uint32(binary.LittleEndian.Uint16(ldr.Data(s)[r.Off():]))
+			o1 = uint32(binary.LittleEndian.Uint16(p[r.Off():]))
 		}
 		if t&3 != 0 {
 			ldr.Errorf(s, "relocation for %s+%d is not aligned: %d", ldr.SymName(rs), r.Off(), t)
@@ -994,9 +1006,10 @@ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
 		ldr.SetPlt(s, int32(plt.Size()))
 
 		plt.Grow(plt.Size() + 8)
+		plt.SetSize(plt.Size() + 8)
 
 		rela.AddAddrPlus(ctxt.Arch, plt.Sym(), int64(ldr.SymPlt(s)))
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_PPC64_JMP_SLOT)))
+		rela.AddUint64(ctxt.Arch, elf.R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_PPC64_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else {
 		ctxt.Errorf(s, "addpltsym: unsupported binary format")
@@ -1032,8 +1045,11 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 	glink.AddUint32(ctxt.Arch, 0x7800f082) // srdi r0,r0,2
 
 	// r11 = address of the first byte of the PLT
-	glink.AddSymRef(ctxt.Arch, ctxt.PLT, 0, objabi.R_ADDRPOWER, 8)
-
+	r, _ := glink.AddRel(objabi.R_ADDRPOWER)
+	r.SetSym(ctxt.PLT)
+	r.SetSiz(8)
+	r.SetOff(int32(glink.Size()))
+	r.SetAdd(0)
 	glink.AddUint32(ctxt.Arch, 0x3d600000) // addis r11,0,.plt@ha
 	glink.AddUint32(ctxt.Arch, 0x396b0000) // addi r11,r11,.plt@l
 
@@ -1052,7 +1068,7 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 	// Add DT_PPC64_GLINK .dynamic entry, which points to 32 bytes
 	// before the first symbol resolver stub.
 	du := ldr.MakeSymbolUpdater(ctxt.Dynamic)
-	ld.Elfwritedynentsymplus(ctxt, du, ld.DT_PPC64_GLINK, glink.Sym(), glink.Size()-32)
+	ld.Elfwritedynentsymplus(ctxt, du, elf.DT_PPC64_GLINK, glink.Sym(), glink.Size()-32)
 
 	return glink
 }

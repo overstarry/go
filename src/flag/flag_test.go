@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -545,7 +544,7 @@ func TestGetters(t *testing.T) {
 func TestParseError(t *testing.T) {
 	for _, typ := range []string{"bool", "int", "int64", "uint", "uint64", "float64", "duration"} {
 		fs := NewFlagSet("parse error test", ContinueOnError)
-		fs.SetOutput(ioutil.Discard)
+		fs.SetOutput(io.Discard)
 		_ = fs.Bool("bool", false, "")
 		_ = fs.Int("int", 0, "")
 		_ = fs.Int64("int64", 0, "")
@@ -576,7 +575,7 @@ func TestRangeError(t *testing.T) {
 	}
 	for _, arg := range bad {
 		fs := NewFlagSet("parse error test", ContinueOnError)
-		fs.SetOutput(ioutil.Discard)
+		fs.SetOutput(io.Discard)
 		_ = fs.Int("int", 0, "")
 		_ = fs.Int64("int64", 0, "")
 		_ = fs.Uint("uint", 0, "")
@@ -653,6 +652,89 @@ func TestExitCode(t *testing.T) {
 		if got != test.expectExit {
 			t.Errorf("unexpected exit code for test case %+v \n: got %d, expect %d",
 				test, got, test.expectExit)
+		}
+	}
+}
+
+func mustPanic(t *testing.T, testName string, expected string, f func()) {
+	t.Helper()
+	defer func() {
+		switch msg := recover().(type) {
+		case nil:
+			t.Errorf("%s\n: expected panic(%q), but did not panic", testName, expected)
+		case string:
+			if msg != expected {
+				t.Errorf("%s\n: expected panic(%q), but got panic(%q)", testName, expected, msg)
+			}
+		default:
+			t.Errorf("%s\n: expected panic(%q), but got panic(%T%v)", testName, expected, msg, msg)
+		}
+	}()
+	f()
+}
+
+func TestInvalidFlags(t *testing.T) {
+	tests := []struct {
+		flag     string
+		errorMsg string
+	}{
+		{
+			flag:     "-foo",
+			errorMsg: "flag \"-foo\" begins with -",
+		},
+		{
+			flag:     "foo=bar",
+			errorMsg: "flag \"foo=bar\" contains =",
+		},
+	}
+
+	for _, test := range tests {
+		testName := fmt.Sprintf("FlagSet.Var(&v, %q, \"\")", test.flag)
+
+		fs := NewFlagSet("", ContinueOnError)
+		buf := bytes.NewBuffer(nil)
+		fs.SetOutput(buf)
+
+		mustPanic(t, testName, test.errorMsg, func() {
+			var v flagVar
+			fs.Var(&v, test.flag, "")
+		})
+		if msg := test.errorMsg + "\n"; msg != buf.String() {
+			t.Errorf("%s\n: unexpected output: expected %q, bug got %q", testName, msg, buf)
+		}
+	}
+}
+
+func TestRedefinedFlags(t *testing.T) {
+	tests := []struct {
+		flagSetName string
+		errorMsg    string
+	}{
+		{
+			flagSetName: "",
+			errorMsg:    "flag redefined: foo",
+		},
+		{
+			flagSetName: "fs",
+			errorMsg:    "fs flag redefined: foo",
+		},
+	}
+
+	for _, test := range tests {
+		testName := fmt.Sprintf("flag redefined in FlagSet(%q)", test.flagSetName)
+
+		fs := NewFlagSet(test.flagSetName, ContinueOnError)
+		buf := bytes.NewBuffer(nil)
+		fs.SetOutput(buf)
+
+		var v flagVar
+		fs.Var(&v, "foo", "")
+
+		mustPanic(t, testName, test.errorMsg, func() {
+			fs.Var(&v, "foo", "")
+		})
+		if msg := test.errorMsg + "\n"; msg != buf.String() {
+			t.Errorf("%s\n: unexpected output: expected %q, bug got %q", testName, msg, buf)
 		}
 	}
 }

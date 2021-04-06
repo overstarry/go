@@ -527,6 +527,9 @@ func rewriteValueWasm(v *Value) bool {
 	case OpSqrt:
 		v.Op = OpWasmF64Sqrt
 		return true
+	case OpSqrt32:
+		v.Op = OpWasmF32Sqrt
+		return true
 	case OpStaticCall:
 		v.Op = OpWasmLoweredStaticCall
 		return true
@@ -3693,6 +3696,20 @@ func rewriteValueWasm_OpWasmI64AddConst(v *Value) bool {
 		v.AddArg(base)
 		return true
 	}
+	// match: (I64AddConst [off] x:(SP))
+	// cond: isU32Bit(off)
+	// result: (LoweredAddr [int32(off)] x)
+	for {
+		off := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if x.Op != OpSP || !(isU32Bit(off)) {
+			break
+		}
+		v.reset(OpWasmLoweredAddr)
+		v.AuxInt = int32ToAuxInt(int32(off))
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueWasm_OpWasmI64And(v *Value) bool {
@@ -4885,7 +4902,5 @@ func rewriteValueWasm_OpZeroExt8to64(v *Value) bool {
 	}
 }
 func rewriteBlockWasm(b *Block) bool {
-	switch b.Kind {
-	}
 	return false
 }

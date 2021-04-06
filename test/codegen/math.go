@@ -46,13 +46,24 @@ func approx(x float64) {
 
 func sqrt(x float64) float64 {
 	// amd64:"SQRTSD"
-	// 386/387:"FSQRT" 386/sse2:"SQRTSD"
+	// 386/sse2:"SQRTSD" 386/softfloat:-"SQRTD"
 	// arm64:"FSQRTD"
 	// arm/7:"SQRTD"
 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
 	// wasm:"F64Sqrt"
 	return math.Sqrt(x)
+}
+
+func sqrt32(x float32) float32 {
+	// amd64:"SQRTSS"
+	// 386/sse2:"SQRTSS" 386/softfloat:-"SQRTS"
+	// arm64:"FSQRTS"
+	// arm/7:"SQRTF"
+	// mips/hardfloat:"SQRTF" mips/softfloat:-"SQRTF"
+	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
+	// wasm:"F32Sqrt"
+	return float32(math.Sqrt(float64(x)))
 }
 
 // Check that it's using integer registers

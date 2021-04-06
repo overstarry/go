@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package main
@@ -10,7 +11,7 @@ import (
 	"cmd/internal/traceviewer"
 	"context"
 	"internal/trace"
-	"io/ioutil"
+	"io"
 	rtrace "runtime/trace"
 	"strings"
 	"sync"
@@ -78,7 +79,7 @@ func TestGoroutineCount(t *testing.T) {
 
 	// Use the default viewerDataTraceConsumer but replace
 	// consumeViewerEvent to intercept the ViewerEvents for testing.
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
 	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
 		if ev.Name == "Goroutines" {
 			cnt := ev.Arg.(*goroutineCountersArg)
@@ -131,7 +132,7 @@ func TestGoroutineFilter(t *testing.T) {
 		gs:      map[uint64]bool{10: true},
 	}
 
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
 	if err := generateTrace(params, c); err != nil {
 		t.Fatalf("generateTrace failed: %v", err)
 	}
@@ -163,7 +164,7 @@ func TestPreemptedMarkAssist(t *testing.T) {
 		endTime: int64(1<<63 - 1),
 	}
 
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
 
 	marks := 0
 	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
@@ -214,7 +215,7 @@ func TestFoo(t *testing.T) {
 		tasks:     []*taskDesc{task},
 	}
 
-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
 
 	var logBeforeTaskEnd, logAfterTaskEnd bool
 	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {

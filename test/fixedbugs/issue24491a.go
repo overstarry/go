@@ -34,9 +34,6 @@ func test(s string, p, q uintptr, rest ...uintptr) int {
 		panic(s + ": q failed")
 	}
 	for _, r := range rest {
-		// TODO(mdempsky): Remove.
-		break
-
 		if *(*string)(unsafe.Pointer(r)) != "ok" {
 			panic(s + ": r[i] failed")
 		}
@@ -51,6 +48,14 @@ func f() int {
 	return test("return", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
 }
 
+type S struct{}
+
+//go:noinline
+//go:uintptrescapes
+func (S) test(s string, p, q uintptr, rest ...uintptr) int {
+	return test(s, p, q, rest...)
+}
+
 func main() {
 	test("normal", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
 	<-done
@@ -60,6 +65,29 @@ func main() {
 
 	func() {
 		defer test("defer", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+	}()
+	<-done
+
+	func() {
+		for {
+			defer test("defer in for loop", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+			break
+		}
+	}()
+
+	<-done
+	func() {
+		s := &S{}
+		defer s.test("method call", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+	}()
+	<-done
+
+	func() {
+		s := &S{}
+		for {
+			defer s.test("defer method loop", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+			break
+		}
 	}()
 	<-done
 

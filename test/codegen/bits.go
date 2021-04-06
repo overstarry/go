@@ -262,8 +262,8 @@ func bitcompl32(a, b uint32) (n uint32) {
 	return n
 }
 
-// check direct operation on memory with constant source
-func bitOpOnMem(a []uint32) {
+// check direct operation on memory with constant and shifted constant sources
+func bitOpOnMem(a []uint32, b, c, d uint32) {
 	// amd64:`ANDL\s[$]200,\s\([A-Z]+\)`
 	a[0] &= 200
 	// amd64:`ORL\s[$]220,\s4\([A-Z]+\)`
@@ -276,6 +276,12 @@ func bitOpOnMem(a []uint32) {
 	a[4] |= 0x4000
 	// amd64:`BTCL\s[$]13,\s20\([A-Z]+\)`,-`XORL`
 	a[5] ^= 0x2000
+	// amd64:`BTRL\s[A-Z]+,\s24\([A-Z]+\)`
+	a[6] &^= 1 << (b & 31)
+	// amd64:`BTSL\s[A-Z]+,\s28\([A-Z]+\)`
+	a[7] |= 1 << (c & 31)
+	// amd64:`BTCL\s[A-Z]+,\s32\([A-Z]+\)`
+	a[8] ^= 1 << (d & 31)
 }
 
 func bitcheckMostNegative(b uint8) bool {
@@ -339,4 +345,25 @@ func bitSetTest(x int) bool {
 	// amd64:"ANDQ\t[$]9, AX"
 	// amd64:"CMPQ\tAX, [$]9"
 	return x&9 == 9
+}
+
+// mask contiguous one bits
+func cont1Mask64U(x uint64) uint64 {
+	// s390x:"RISBGZ\t[$]16, [$]47, [$]0,"
+	return x & 0x0000ffffffff0000
+}
+
+// mask contiguous zero bits
+func cont0Mask64U(x uint64) uint64 {
+	// s390x:"RISBGZ\t[$]48, [$]15, [$]0,"
+	return x & 0xffff00000000ffff
+}
+
+func issue44228a(a []int64, i int) bool {
+	// amd64: "BTQ", -"SHL"
+	return a[i>>6]&(1<<(i&63)) != 0
+}
+func issue44228b(a []int32, i int) bool {
+	// amd64: "BTL", -"SHL"
+	return a[i>>5]&(1<<(i&31)) != 0
 }

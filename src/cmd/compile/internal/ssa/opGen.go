@@ -432,6 +432,7 @@ const (
 	Op386BSRW
 	Op386BSWAPL
 	Op386SQRTSD
+	Op386SQRTSS
 	Op386SBBLcarrymask
 	Op386SETEQ
 	Op386SETNE
@@ -536,7 +537,6 @@ const (
 	Op386FlagLT_UGT
 	Op386FlagGT_UGT
 	Op386FlagGT_ULT
-	Op386FCHS
 	Op386MOVSSconst1
 	Op386MOVSDconst1
 	Op386MOVSSconst2
@@ -732,6 +732,8 @@ const (
 	OpAMD64SARLconst
 	OpAMD64SARWconst
 	OpAMD64SARBconst
+	OpAMD64SHRDQ
+	OpAMD64SHLDQ
 	OpAMD64ROLQ
 	OpAMD64ROLL
 	OpAMD64ROLW
@@ -889,6 +891,7 @@ const (
 	OpAMD64POPCNTQ
 	OpAMD64POPCNTL
 	OpAMD64SQRTSD
+	OpAMD64SQRTSS
 	OpAMD64ROUNDSD
 	OpAMD64VFMADD231SD
 	OpAMD64SBBQcarrymask
@@ -971,6 +974,7 @@ const (
 	OpAMD64MOVQstore
 	OpAMD64MOVOload
 	OpAMD64MOVOstore
+	OpAMD64MOVOstorezero
 	OpAMD64MOVBloadidx1
 	OpAMD64MOVWloadidx1
 	OpAMD64MOVWloadidx2
@@ -999,7 +1003,6 @@ const (
 	OpAMD64MOVQstoreconstidx1
 	OpAMD64MOVQstoreconstidx8
 	OpAMD64DUFFZERO
-	OpAMD64MOVOconst
 	OpAMD64REPSTOSQ
 	OpAMD64CALLstatic
 	OpAMD64CALLclosure
@@ -1035,7 +1038,9 @@ const (
 	OpAMD64CMPXCHGLlock
 	OpAMD64CMPXCHGQlock
 	OpAMD64ANDBlock
+	OpAMD64ANDLlock
 	OpAMD64ORBlock
+	OpAMD64ORLlock
 
 	OpARMADD
 	OpARMADDconst
@@ -1089,6 +1094,7 @@ const (
 	OpARMNEGF
 	OpARMNEGD
 	OpARMSQRTD
+	OpARMSQRTF
 	OpARMABSD
 	OpARMCLZ
 	OpARMREV
@@ -1357,8 +1363,10 @@ const (
 	OpARM64FNEGS
 	OpARM64FNEGD
 	OpARM64FSQRTD
+	OpARM64FSQRTS
 	OpARM64REV
 	OpARM64REVW
+	OpARM64REV16
 	OpARM64REV16W
 	OpARM64RBIT
 	OpARM64RBITW
@@ -1480,6 +1488,8 @@ const (
 	OpARM64MOVWloadidx4
 	OpARM64MOVWUloadidx4
 	OpARM64MOVDloadidx8
+	OpARM64FMOVSloadidx4
+	OpARM64FMOVDloadidx8
 	OpARM64MOVBstore
 	OpARM64MOVHstore
 	OpARM64MOVWstore
@@ -1496,6 +1506,8 @@ const (
 	OpARM64MOVHstoreidx2
 	OpARM64MOVWstoreidx4
 	OpARM64MOVDstoreidx8
+	OpARM64FMOVSstoreidx4
+	OpARM64FMOVDstoreidx8
 	OpARM64MOVBstorezero
 	OpARM64MOVHstorezero
 	OpARM64MOVWstorezero
@@ -1545,6 +1557,10 @@ const (
 	OpARM64FRINTZD
 	OpARM64CSEL
 	OpARM64CSEL0
+	OpARM64CSINC
+	OpARM64CSINV
+	OpARM64CSNEG
+	OpARM64CSETM
 	OpARM64CALLstatic
 	OpARM64CALLclosure
 	OpARM64CALLinter
@@ -1563,6 +1579,10 @@ const (
 	OpARM64LessEqualF
 	OpARM64GreaterThanF
 	OpARM64GreaterEqualF
+	OpARM64NotLessThanF
+	OpARM64NotLessEqualF
+	OpARM64NotGreaterThanF
+	OpARM64NotGreaterEqualF
 	OpARM64DUFFZERO
 	OpARM64LoweredZero
 	OpARM64DUFFCOPY
@@ -1580,14 +1600,24 @@ const (
 	OpARM64STLRW
 	OpARM64LoweredAtomicExchange64
 	OpARM64LoweredAtomicExchange32
+	OpARM64LoweredAtomicExchange64Variant
+	OpARM64LoweredAtomicExchange32Variant
 	OpARM64LoweredAtomicAdd64
 	OpARM64LoweredAtomicAdd32
 	OpARM64LoweredAtomicAdd64Variant
 	OpARM64LoweredAtomicAdd32Variant
 	OpARM64LoweredAtomicCas64
 	OpARM64LoweredAtomicCas32
+	OpARM64LoweredAtomicCas64Variant
+	OpARM64LoweredAtomicCas32Variant
 	OpARM64LoweredAtomicAnd8
+	OpARM64LoweredAtomicAnd32
 	OpARM64LoweredAtomicOr8
+	OpARM64LoweredAtomicOr32
+	OpARM64LoweredAtomicAnd8Variant
+	OpARM64LoweredAtomicAnd32Variant
+	OpARM64LoweredAtomicOr8Variant
+	OpARM64LoweredAtomicOr32Variant
 	OpARM64LoweredWB
 	OpARM64LoweredPanicBoundsA
 	OpARM64LoweredPanicBoundsB
@@ -1622,6 +1652,7 @@ const (
 	OpMIPSNEGF
 	OpMIPSNEGD
 	OpMIPSSQRTD
+	OpMIPSSQRTF
 	OpMIPSSLL
 	OpMIPSSLLconst
 	OpMIPSSRL
@@ -1732,6 +1763,7 @@ const (
 	OpMIPS64NEGF
 	OpMIPS64NEGD
 	OpMIPS64SQRTD
+	OpMIPS64SQRTF
 	OpMIPS64SLLV
 	OpMIPS64SLLVconst
 	OpMIPS64SRLV
@@ -1833,6 +1865,8 @@ const (
 	OpPPC64FSUBS
 	OpPPC64MULLD
 	OpPPC64MULLW
+	OpPPC64MULLDconst
+	OpPPC64MULLWconst
 	OpPPC64MADDLD
 	OpPPC64MULHD
 	OpPPC64MULHW
@@ -1866,6 +1900,9 @@ const (
 	OpPPC64ROTLconst
 	OpPPC64ROTLWconst
 	OpPPC64EXTSWSLconst
+	OpPPC64RLWINM
+	OpPPC64RLWNM
+	OpPPC64RLWMI
 	OpPPC64CNTLZD
 	OpPPC64CNTLZW
 	OpPPC64CNTTZD
@@ -2021,7 +2058,9 @@ const (
 	OpPPC64LoweredAtomicCas64
 	OpPPC64LoweredAtomicCas32
 	OpPPC64LoweredAtomicAnd8
+	OpPPC64LoweredAtomicAnd32
 	OpPPC64LoweredAtomicOr8
+	OpPPC64LoweredAtomicOr32
 	OpPPC64LoweredWB
 	OpPPC64LoweredPanicBoundsA
 	OpPPC64LoweredPanicBoundsB
@@ -2051,9 +2090,6 @@ const (
 	OpRISCV64REMW
 	OpRISCV64REMUW
 	OpRISCV64MOVaddr
-	OpRISCV64MOVBconst
-	OpRISCV64MOVHconst
-	OpRISCV64MOVWconst
 	OpRISCV64MOVDconst
 	OpRISCV64MOVBload
 	OpRISCV64MOVHload
@@ -2070,6 +2106,14 @@ const (
 	OpRISCV64MOVHstorezero
 	OpRISCV64MOVWstorezero
 	OpRISCV64MOVDstorezero
+	OpRISCV64MOVBreg
+	OpRISCV64MOVHreg
+	OpRISCV64MOVWreg
+	OpRISCV64MOVDreg
+	OpRISCV64MOVBUreg
+	OpRISCV64MOVHUreg
+	OpRISCV64MOVWUreg
+	OpRISCV64MOVDnop
 	OpRISCV64SLL
 	OpRISCV64SRA
 	OpRISCV64SRL
@@ -2093,6 +2137,8 @@ const (
 	OpRISCV64CALLstatic
 	OpRISCV64CALLclosure
 	OpRISCV64CALLinter
+	OpRISCV64DUFFZERO
+	OpRISCV64DUFFCOPY
 	OpRISCV64LoweredZero
 	OpRISCV64LoweredMove
 	OpRISCV64LoweredAtomicLoad8
@@ -2107,6 +2153,8 @@ const (
 	OpRISCV64LoweredAtomicAdd64
 	OpRISCV64LoweredAtomicCas32
 	OpRISCV64LoweredAtomicCas64
+	OpRISCV64LoweredAtomicAnd32
+	OpRISCV64LoweredAtomicOr32
 	OpRISCV64LoweredNilCheck
 	OpRISCV64LoweredGetClosurePtr
 	OpRISCV64LoweredGetCallerSP
@@ -2257,14 +2305,15 @@ const (
 	OpS390XSRAWconst
 	OpS390XRLLG
 	OpS390XRLL
-	OpS390XRLLGconst
 	OpS390XRLLconst
 	OpS390XRXSBG
+	OpS390XRISBGZ
 	OpS390XNEG
 	OpS390XNEGW
 	OpS390XNOT
 	OpS390XNOTW
 	OpS390XFSQRT
+	OpS390XFSQRTS
 	OpS390XLOCGR
 	OpS390XMOVBreg
 	OpS390XMOVBZreg
@@ -2367,8 +2416,10 @@ const (
 	OpS390XLAAG
 	OpS390XAddTupleFirst32
 	OpS390XAddTupleFirst64
-	OpS390XLAOfloor
+	OpS390XLAN
 	OpS390XLANfloor
+	OpS390XLAO
+	OpS390XLAOfloor
 	OpS390XLoweredAtomicCas32
 	OpS390XLoweredAtomicCas64
 	OpS390XLoweredAtomicExchange32
@@ -2689,6 +2740,7 @@ const (
 	OpRotateLeft32
 	OpRotateLeft64
 	OpSqrt
+	OpSqrt32
 	OpFloor
 	OpCeil
 	OpTrunc
@@ -2713,6 +2765,8 @@ const (
 	OpConstSlice
 	OpInitMem
 	OpArg
+	OpArgIntReg
+	OpArgFloatReg
 	OpAddr
 	OpLocalAddr
 	OpSP
@@ -2732,7 +2786,9 @@ const (
 	OpClosureCall
 	OpStaticCall
 	OpInterCall
+	OpClosureLECall
 	OpStaticLECall
+	OpInterLECall
 	OpSignExt8to16
 	OpSignExt8to32
 	OpSignExt8to64
@@ -2831,16 +2887,19 @@ const (
 	OpSelect1
 	OpSelectN
 	OpSelectNAddr
+	OpMakeResult
 	OpAtomicLoad8
 	OpAtomicLoad32
 	OpAtomicLoad64
 	OpAtomicLoadPtr
 	OpAtomicLoadAcq32
+	OpAtomicLoadAcq64
 	OpAtomicStore8
 	OpAtomicStore32
 	OpAtomicStore64
 	OpAtomicStorePtrNoWB
 	OpAtomicStoreRel32
+	OpAtomicStoreRel64
 	OpAtomicExchange32
 	OpAtomicExchange64
 	OpAtomicAdd32
@@ -2849,10 +2908,21 @@ const (
 	OpAtomicCompareAndSwap64
 	OpAtomicCompareAndSwapRel32
 	OpAtomicAnd8
+	OpAtomicAnd32
 	OpAtomicOr8
+	OpAtomicOr32
 	OpAtomicAdd32Variant
 	OpAtomicAdd64Variant
+	OpAtomicExchange32Variant
+	OpAtomicExchange64Variant
+	OpAtomicCompareAndSwap32Variant
+	OpAtomicCompareAndSwap64Variant
+	OpAtomicAnd8Variant
+	OpAtomicAnd32Variant
+	OpAtomicOr8Variant
+	OpAtomicOr32Variant
 	OpClobber
+	OpClobberReg
 )
 
 var opcodeTable = [...]opInfo{
@@ -2863,7 +2933,6 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
-		usesScratch:  true,
 		asm:          x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2895,7 +2964,6 @@ var opcodeTable = [...]opInfo{
 		name:         "SUBSS",
 		argLen:       2,
 		resultInArg0: true,
-		usesScratch:  true,
 		asm:          x86.ASUBSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2927,7 +2995,6 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
-		usesScratch:  true,
 		asm:          x86.AMULSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2959,7 +3026,6 @@ var opcodeTable = [...]opInfo{
 		name:         "DIVSS",
 		argLen:       2,
 		resultInArg0: true,
-		usesScratch:  true,
 		asm:          x86.ADIVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -4023,10 +4089,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "UCOMISS",
-		argLen:      2,
-		usesScratch: true,
-		asm:         x86.AUCOMISS,
+		name:   "UCOMISS",
+		argLen: 2,
+		asm:    x86.AUCOMISS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -4035,10 +4100,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "UCOMISD",
-		argLen:      2,
-		usesScratch: true,
-		asm:         x86.AUCOMISD,
+		name:   "UCOMISD",
+		argLen: 2,
+		asm:    x86.AUCOMISD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -4730,6 +4794,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "SQRTSS",
+		argLen: 1,
+		asm:    x86.ASQRTSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+			},
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+			},
+		},
+	},
+	{
 		name:   "SBBLcarrymask",
 		argLen: 1,
 		asm:    x86.ASBBL,
@@ -4978,10 +5055,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTTSD2SL",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTTSD2SL,
+		name:   "CVTTSD2SL",
+		argLen: 1,
+		asm:    x86.ACVTTSD2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -4992,10 +5068,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTTSS2SL",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTTSS2SL,
+		name:   "CVTTSS2SL",
+		argLen: 1,
+		asm:    x86.ACVTTSS2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -5006,10 +5081,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTSL2SS",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTSL2SS,
+		name:   "CVTSL2SS",
+		argLen: 1,
+		asm:    x86.ACVTSL2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -5020,10 +5094,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTSL2SD",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTSL2SD,
+		name:   "CVTSL2SD",
+		argLen: 1,
+		asm:    x86.ACVTSL2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -5034,10 +5107,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "CVTSD2SS",
-		argLen:      1,
-		usesScratch: true,
-		asm:         x86.ACVTSD2SS,
+		name:   "CVTSD2SS",
+		argLen: 1,
+		asm:    x86.ACVTSD2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
@@ -6059,18 +6131,6 @@ var opcodeTable = [...]opInfo{
 		reg:    regInfo{},
 	},
 	{
-		name:   "FCHS",
-		argLen: 1,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
-			},
-			outputs: []outputInfo{
-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
-			},
-		},
-	},
-	{
 		name:    "MOVSSconst1",
 		auxType: auxFloat32,
 		argLen:  0,
@@ -6125,11 +6185,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6141,11 +6201,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADDSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6156,11 +6216,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6171,11 +6231,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6187,11 +6247,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AMULSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6203,11 +6263,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AMULSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6218,11 +6278,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ADIVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6233,11 +6293,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ADIVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6250,10 +6310,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6266,10 +6326,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6281,7 +6341,7 @@ var opcodeTable = [...]opInfo{
 		asm:               x86.AMOVSS,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6293,7 +6353,7 @@ var opcodeTable = [...]opInfo{
 		asm:               x86.AMOVSD,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6306,11 +6366,11 @@ var opcodeTable = [...]opInfo{
 		scale:     1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6323,11 +6383,11 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6340,11 +6400,11 @@ var opcodeTable = [...]opInfo{
 		scale:     1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6357,11 +6417,11 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6374,8 +6434,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 		},
 	},
@@ -6388,8 +6448,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 		},
 	},
@@ -6402,9 +6462,9 @@ var opcodeTable = [...]opInfo{
 		scale:     1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 		},
 	},
@@ -6417,9 +6477,9 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 		},
 	},
@@ -6432,9 +6492,9 @@ var opcodeTable = [...]opInfo{
 		scale:     1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 		},
 	},
@@ -6447,9 +6507,9 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 		},
 	},
@@ -6463,11 +6523,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6481,11 +6541,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AADDSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6499,11 +6559,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASUBSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6517,11 +6577,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASUBSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6535,11 +6595,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMULSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6553,11 +6613,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMULSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6571,11 +6631,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ADIVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6589,11 +6649,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ADIVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6607,12 +6667,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6626,12 +6686,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6645,12 +6705,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6664,12 +6724,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6683,12 +6743,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6702,12 +6762,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6721,12 +6781,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6740,12 +6800,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6759,12 +6819,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6778,12 +6838,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6797,12 +6857,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6816,12 +6876,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6835,12 +6895,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6854,12 +6914,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6873,12 +6933,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6892,12 +6952,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -6909,11 +6969,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -6925,11 +6985,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -6941,10 +7001,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -6956,10 +7016,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -6973,7 +7033,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -6987,7 +7047,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -6999,11 +7059,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7015,11 +7075,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7032,10 +7092,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7048,10 +7108,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7064,11 +7124,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7081,11 +7141,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7097,10 +7157,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMUL3Q,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7112,10 +7172,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMUL3L,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7128,7 +7188,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 4, // DX
 			outputs: []outputInfo{
@@ -7146,7 +7206,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 4, // DX
 			outputs: []outputInfo{
@@ -7163,7 +7223,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
@@ -7179,7 +7239,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
@@ -7195,7 +7255,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
@@ -7211,7 +7271,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
@@ -7227,11 +7287,11 @@ var opcodeTable = [...]opInfo{
 		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7244,7 +7304,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49147}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, 1}, // AX
@@ -7261,7 +7321,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49147}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, 1}, // AX
@@ -7278,7 +7338,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49147}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, 1}, // AX
@@ -7294,7 +7354,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49147}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, 1}, // AX
@@ -7310,7 +7370,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49147}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, 1}, // AX
@@ -7326,7 +7386,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49147}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, 1}, // AX
@@ -7341,11 +7401,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7357,12 +7417,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7374,12 +7434,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADCQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7391,11 +7451,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7407,11 +7467,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AADCQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7422,12 +7482,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7438,12 +7498,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASBBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7455,11 +7515,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7471,11 +7531,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASBBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7488,7 +7548,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, 4}, // DX
@@ -7505,7 +7565,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4},     // DX
 				{1, 1},     // AX
-				{2, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, 1}, // AX
@@ -7522,11 +7582,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7539,11 +7599,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7556,10 +7616,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7572,10 +7632,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7589,7 +7649,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7603,7 +7663,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7616,11 +7676,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7633,11 +7693,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7650,10 +7710,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7666,10 +7726,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7683,7 +7743,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7697,7 +7757,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7710,11 +7770,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7727,11 +7787,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7744,10 +7804,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7760,10 +7820,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7777,7 +7837,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7791,7 +7851,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7801,8 +7861,8 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7812,8 +7872,8 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACMPL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7823,8 +7883,8 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7834,8 +7894,8 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7846,7 +7906,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ACMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7857,7 +7917,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ACMPL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7868,7 +7928,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ACMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7879,7 +7939,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ACMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -7892,8 +7952,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7906,8 +7966,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7920,8 +7980,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7934,8 +7994,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7948,7 +8008,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7961,7 +8021,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7974,7 +8034,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -7987,7 +8047,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8000,9 +8060,9 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8016,9 +8076,9 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8031,9 +8091,9 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8047,9 +8107,9 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8062,9 +8122,9 @@ var opcodeTable = [...]opInfo{
 		scale:     2,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8078,9 +8138,9 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8094,9 +8154,9 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8109,8 +8169,8 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8124,8 +8184,8 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8138,8 +8198,8 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8153,8 +8213,8 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8167,8 +8227,8 @@ var opcodeTable = [...]opInfo{
 		scale:     2,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8182,8 +8242,8 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8197,8 +8257,8 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8208,8 +8268,8 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AUCOMISS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -8219,8 +8279,8 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AUCOMISD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -8230,8 +8290,8 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8241,8 +8301,8 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8254,11 +8314,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTCL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8270,11 +8330,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTCQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8286,11 +8346,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8302,11 +8362,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8318,11 +8378,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTSL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8334,11 +8394,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTSQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8349,7 +8409,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ABTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8360,7 +8420,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ABTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8373,10 +8433,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTCL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8389,10 +8449,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTCQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8405,10 +8465,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8421,10 +8481,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8437,10 +8497,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTSL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8453,10 +8513,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABTSQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8470,8 +8530,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTCQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8485,8 +8545,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTCL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8500,8 +8560,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTSQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8515,8 +8575,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTSL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8530,8 +8590,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8545,8 +8605,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8560,7 +8620,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTCQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8574,7 +8634,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTCL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8588,7 +8648,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTSQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8602,7 +8662,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTSL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8616,7 +8676,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8630,7 +8690,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ABTRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -8641,8 +8701,8 @@ var opcodeTable = [...]opInfo{
 		asm:         x86.ATESTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8653,8 +8713,8 @@ var opcodeTable = [...]opInfo{
 		asm:         x86.ATESTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8665,8 +8725,8 @@ var opcodeTable = [...]opInfo{
 		asm:         x86.ATESTW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8677,8 +8737,8 @@ var opcodeTable = [...]opInfo{
 		asm:         x86.ATESTB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8689,7 +8749,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ATESTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8700,7 +8760,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ATESTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8711,7 +8771,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ATESTW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8722,7 +8782,7 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.ATESTB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8735,10 +8795,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8751,10 +8811,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8767,10 +8827,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8783,10 +8843,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8799,10 +8859,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8815,10 +8875,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8831,10 +8891,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8847,10 +8907,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8863,10 +8923,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8879,10 +8939,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8895,10 +8955,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8911,10 +8971,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8927,10 +8987,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8943,10 +9003,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8959,10 +9019,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8975,10 +9035,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -8991,10 +9051,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9007,10 +9067,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9023,10 +9083,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9039,10 +9099,44 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:         "SHRDQ",
+		argLen:       3,
+		resultInArg0: true,
+		clobberFlags: true,
+		asm:          x86.ASHRQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 2},     // CX
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:         "SHLDQ",
+		argLen:       3,
+		resultInArg0: true,
+		clobberFlags: true,
+		asm:          x86.ASHLQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 2},     // CX
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9055,10 +9149,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9071,10 +9165,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9087,10 +9181,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9103,10 +9197,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9119,10 +9213,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9135,10 +9229,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9151,10 +9245,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9167,10 +9261,10 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9183,10 +9277,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AROLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9199,10 +9293,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AROLL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9215,10 +9309,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AROLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9231,10 +9325,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AROLB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9249,11 +9343,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9268,11 +9362,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9287,11 +9381,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9306,11 +9400,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9325,11 +9419,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9344,11 +9438,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9363,11 +9457,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9382,11 +9476,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9401,11 +9495,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9420,11 +9514,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9439,12 +9533,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9459,12 +9553,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9479,12 +9573,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9499,12 +9593,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9519,12 +9613,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9539,12 +9633,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9559,12 +9653,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9579,12 +9673,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9599,12 +9693,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9619,12 +9713,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9639,12 +9733,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9659,12 +9753,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9679,12 +9773,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9699,12 +9793,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9719,12 +9813,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9739,12 +9833,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9759,12 +9853,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9779,12 +9873,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9799,12 +9893,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9819,12 +9913,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9839,12 +9933,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9859,12 +9953,12 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9879,12 +9973,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9899,12 +9993,12 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9919,12 +10013,12 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -9938,8 +10032,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -9953,8 +10047,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -9968,8 +10062,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -9983,8 +10077,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -9998,8 +10092,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10013,8 +10107,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10028,8 +10122,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10043,8 +10137,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10058,8 +10152,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10073,8 +10167,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10088,9 +10182,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10104,9 +10198,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10120,9 +10214,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10136,9 +10230,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10152,9 +10246,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10168,9 +10262,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10184,9 +10278,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10200,9 +10294,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10216,9 +10310,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10232,9 +10326,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10248,9 +10342,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10264,9 +10358,9 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10280,9 +10374,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10296,9 +10390,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10312,9 +10406,9 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10328,9 +10422,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10344,9 +10438,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10360,9 +10454,9 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10376,9 +10470,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10392,9 +10486,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10408,9 +10502,9 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10424,9 +10518,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10440,9 +10534,9 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10456,9 +10550,9 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10472,9 +10566,9 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10488,8 +10582,8 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10503,8 +10597,8 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10518,8 +10612,8 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10533,8 +10627,8 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10548,8 +10642,8 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10563,8 +10657,8 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10578,8 +10672,8 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10593,8 +10687,8 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10608,8 +10702,8 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10623,8 +10717,8 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10638,8 +10732,8 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10653,8 +10747,8 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10668,8 +10762,8 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10683,8 +10777,8 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10698,8 +10792,8 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10713,8 +10807,8 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10728,8 +10822,8 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10743,8 +10837,8 @@ var opcodeTable = [...]opInfo{
 		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10758,8 +10852,8 @@ var opcodeTable = [...]opInfo{
 		scale:        4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10773,8 +10867,8 @@ var opcodeTable = [...]opInfo{
 		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -10786,10 +10880,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANEGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10801,10 +10895,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10816,10 +10910,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANOTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10831,10 +10925,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10844,11 +10938,11 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABSFQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10859,10 +10953,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABSFL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10872,11 +10966,11 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABSRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10887,10 +10981,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABSRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10901,11 +10995,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10916,11 +11010,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10931,11 +11025,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQLT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10946,11 +11040,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQGT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10961,11 +11055,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQLE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10976,11 +11070,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQGE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -10991,11 +11085,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQLS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11006,11 +11100,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQHI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11021,11 +11115,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQCC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11036,11 +11130,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQCS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11051,11 +11145,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11066,11 +11160,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11081,11 +11175,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLLT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11096,11 +11190,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLGT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11111,11 +11205,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLLE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11126,11 +11220,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLGE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11141,11 +11235,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLLS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11156,11 +11250,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLHI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11171,11 +11265,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLCC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11186,11 +11280,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLCS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11201,11 +11295,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11216,11 +11310,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11231,11 +11325,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWLT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11246,11 +11340,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWGT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11261,11 +11355,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWLE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11276,11 +11370,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWGE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11291,11 +11385,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWLS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11306,11 +11400,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWHI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11321,11 +11415,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWCC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11336,11 +11430,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWCS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11351,12 +11445,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11367,11 +11461,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11382,11 +11476,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQHI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11397,11 +11491,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVQCC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11412,12 +11506,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11428,11 +11522,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11443,11 +11537,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLHI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11458,11 +11552,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVLCC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11473,12 +11567,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11489,11 +11583,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11504,11 +11598,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWHI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11519,11 +11613,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ACMOVWCC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11535,10 +11629,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABSWAPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11550,10 +11644,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABSWAPL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11564,10 +11658,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.APOPCNTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11578,10 +11672,10 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.APOPCNTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11591,10 +11685,23 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASQRTSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "SQRTSS",
+		argLen: 1,
+		asm:    x86.ASQRTSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -11605,10 +11712,10 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.AROUNDSD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -11619,12 +11726,12 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AVFMADD231SD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -11634,7 +11741,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASBBQ,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11644,7 +11751,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASBBL,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11654,7 +11761,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETEQ,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11664,7 +11771,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETNE,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11674,7 +11781,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETLT,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11684,7 +11791,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETLE,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11694,7 +11801,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETGT,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11704,7 +11811,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETGE,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11714,7 +11821,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETCS,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11724,7 +11831,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETLS,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11734,7 +11841,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETHI,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11744,7 +11851,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETCC,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11754,7 +11861,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETOS,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11767,7 +11874,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11780,7 +11887,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11793,7 +11900,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETLT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11806,7 +11913,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETLE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11819,7 +11926,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETGT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11832,7 +11939,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETGE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11845,7 +11952,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETCS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11858,7 +11965,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETLS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11871,7 +11978,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETHI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11884,7 +11991,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ASETCC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -11896,7 +12003,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11908,7 +12015,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11918,7 +12025,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETPC,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11928,7 +12035,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETPS,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11938,7 +12045,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETHI,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11948,7 +12055,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ASETCC,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11958,10 +12065,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVBQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11971,10 +12078,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVBLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11984,10 +12091,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVWQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -11997,10 +12104,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVWLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12010,10 +12117,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVLQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12023,10 +12130,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12038,7 +12145,7 @@ var opcodeTable = [...]opInfo{
 		asm:               x86.AMOVL,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12050,7 +12157,7 @@ var opcodeTable = [...]opInfo{
 		asm:               x86.AMOVQ,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12060,10 +12167,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTTSD2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12073,10 +12180,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTTSD2SQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12086,10 +12193,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTTSS2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12099,10 +12206,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTTSS2SQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12112,10 +12219,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTSL2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12125,10 +12232,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTSL2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12138,10 +12245,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTSQ2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12151,10 +12258,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTSQ2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12164,10 +12271,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTSD2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12177,10 +12284,10 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ACVTSS2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12189,10 +12296,10 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12201,10 +12308,10 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12213,10 +12320,10 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12225,10 +12332,10 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12240,11 +12347,11 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.APXOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12257,10 +12364,10 @@ var opcodeTable = [...]opInfo{
 		asm:               x86.ALEAQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12273,10 +12380,10 @@ var opcodeTable = [...]opInfo{
 		asm:               x86.ALEAL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12289,10 +12396,10 @@ var opcodeTable = [...]opInfo{
 		asm:               x86.ALEAW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12306,11 +12413,11 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12324,11 +12431,11 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12342,11 +12449,11 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12359,11 +12466,11 @@ var opcodeTable = [...]opInfo{
 		scale:     2,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12376,11 +12483,11 @@ var opcodeTable = [...]opInfo{
 		scale:     2,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12393,11 +12500,11 @@ var opcodeTable = [...]opInfo{
 		scale:     2,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12410,11 +12517,11 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12427,11 +12534,11 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12444,11 +12551,11 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12461,11 +12568,11 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12478,11 +12585,11 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12495,11 +12602,11 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12512,10 +12619,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVBLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12528,10 +12635,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVBQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12544,10 +12651,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVWLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12560,10 +12667,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVWQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12576,10 +12683,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12592,10 +12699,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVLQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12608,10 +12715,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12624,8 +12731,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12638,8 +12745,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12652,8 +12759,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12666,8 +12773,8 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12680,10 +12787,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVUPS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -12696,8 +12803,21 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVUPS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+		},
+	},
+	{
+		name:           "MOVOstorezero",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AMOVUPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 		},
 	},
@@ -12711,11 +12831,11 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12729,11 +12849,11 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12746,11 +12866,11 @@ var opcodeTable = [...]opInfo{
 		scale:     2,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12764,11 +12884,11 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12781,11 +12901,11 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12798,11 +12918,11 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12816,11 +12936,11 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12833,11 +12953,11 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -12851,9 +12971,9 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12867,9 +12987,9 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12882,9 +13002,9 @@ var opcodeTable = [...]opInfo{
 		scale:     2,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12898,9 +13018,9 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12913,9 +13033,9 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12928,9 +13048,9 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12944,9 +13064,9 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12959,9 +13079,9 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12974,7 +13094,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -12987,7 +13107,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13000,7 +13120,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13013,7 +13133,7 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13027,8 +13147,8 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13042,8 +13162,8 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13056,8 +13176,8 @@ var opcodeTable = [...]opInfo{
 		scale:     2,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13071,8 +13191,8 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13085,8 +13205,8 @@ var opcodeTable = [...]opInfo{
 		scale:     4,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13100,8 +13220,8 @@ var opcodeTable = [...]opInfo{
 		scale:       1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13114,34 +13234,22 @@ var opcodeTable = [...]opInfo{
 		scale:     8,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
 	{
 		name:           "DUFFZERO",
 		auxType:        auxInt64,
-		argLen:         3,
+		argLen:         2,
 		faultOnNilArg0: true,
 		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 128},   // DI
-				{1, 65536}, // X0
+				{0, 128}, // DI
 			},
 			clobbers: 128, // DI
-		},
-	},
-	{
-		name:              "MOVOconst",
-		auxType:           auxInt128,
-		argLen:            0,
-		rematerializeable: true,
-		reg: regInfo{
-			outputs: []outputInfo{
-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-			},
 		},
 	},
 	{
@@ -13160,38 +13268,38 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "CALLstatic",
 		auxType:      auxCallOff,
-		argLen:       1,
+		argLen:       -1,
 		clobberFlags: true,
 		call:         true,
 		reg: regInfo{
-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			clobbers: 2147483631, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 		},
 	},
 	{
 		name:         "CALLclosure",
 		auxType:      auxCallOff,
-		argLen:       3,
+		argLen:       -1,
 		clobberFlags: true,
 		call:         true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 4},     // DX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			clobbers: 2147483631, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 		},
 	},
 	{
 		name:         "CALLinter",
 		auxType:      auxCallOff,
-		argLen:       2,
+		argLen:       -1,
 		clobberFlags: true,
 		call:         true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			clobbers: 2147483631, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 		},
 	},
 	{
@@ -13234,7 +13342,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13254,7 +13362,7 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13264,7 +13372,7 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13276,7 +13384,7 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49151}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13291,7 +13399,7 @@ var opcodeTable = [...]opInfo{
 				{0, 128}, // DI
 				{1, 879}, // AX CX DX BX BP SI R8 R9
 			},
-			clobbers: 4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			clobbers: 2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 		},
 	},
 	{
@@ -13302,7 +13410,7 @@ var opcodeTable = [...]opInfo{
 		symEffect:         SymNone,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13376,10 +13484,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13392,10 +13500,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13408,10 +13516,10 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13426,11 +13534,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXCHGB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13445,11 +13553,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXCHGL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13464,11 +13572,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXCHGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13484,11 +13592,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13504,11 +13612,11 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AXADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{0, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13534,13 +13642,13 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1},     // AX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13556,13 +13664,13 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1},     // AX
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{2, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{2, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{1, 0},
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -13577,8 +13685,24 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AANDB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "ANDLlock",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		symEffect:      SymRdWr,
+		asm:            x86.AANDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -13593,8 +13717,24 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.AORB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "ORLlock",
+		auxType:        auxSymOff,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		symEffect:      SymRdWr,
+		asm:            x86.AORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
 			},
 		},
 	},
@@ -14350,6 +14490,19 @@ var opcodeTable = [...]opInfo{
 		name:   "SQRTD",
 		argLen: 1,
 		asm:    arm.ASQRTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "SQRTF",
+		argLen: 1,
+		asm:    arm.ASQRTF,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -18022,6 +18175,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "FSQRTS",
+		argLen: 1,
+		asm:    arm64.AFSQRTS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "REV",
 		argLen: 1,
 		asm:    arm64.AREV,
@@ -18038,6 +18204,19 @@ var opcodeTable = [...]opInfo{
 		name:   "REVW",
 		argLen: 1,
 		asm:    arm64.AREVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "REV16",
+		argLen: 1,
+		asm:    arm64.AREV16,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -19727,6 +19906,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "FMOVSloadidx4",
+		argLen: 3,
+		asm:    arm64.AFMOVS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "FMOVDloadidx8",
+		argLen: 3,
+		asm:    arm64.AFMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:           "MOVBstore",
 		auxType:        auxSymOff,
 		argLen:         3,
@@ -19930,6 +20137,30 @@ var opcodeTable = [...]opInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
 				{2, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
 				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+		},
+	},
+	{
+		name:   "FMOVSstoreidx4",
+		argLen: 4,
+		asm:    arm64.AFMOVS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+				{2, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "FMOVDstoreidx8",
+		argLen: 4,
+		asm:    arm64.AFMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+				{2, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 		},
 	},
@@ -20560,6 +20791,62 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "CSINC",
+		auxType: auxCCop,
+		argLen:  3,
+		asm:     arm64.ACSINC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:    "CSINV",
+		auxType: auxCCop,
+		argLen:  3,
+		asm:     arm64.ACSINV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:    "CSNEG",
+		auxType: auxCCop,
+		argLen:  3,
+		asm:     arm64.ACSNEG,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:    "CSETM",
+		auxType: auxCCop,
+		argLen:  1,
+		asm:     arm64.ACSETM,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:         "CALLstatic",
 		auxType:      auxCallOff,
 		argLen:       1,
@@ -20734,6 +21021,42 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "NotLessThanF",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "NotLessEqualF",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "NotGreaterThanF",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "NotGreaterEqualF",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:           "DUFFZERO",
 		auxType:        auxInt64,
 		argLen:         2,
@@ -20743,7 +21066,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1048576}, // R20
 			},
-			clobbers: 537919488, // R20 R30
+			clobbers: 538116096, // R16 R17 R20 R30
 		},
 	},
 	{
@@ -20771,7 +21094,7 @@ var opcodeTable = [...]opInfo{
 				{0, 2097152}, // R21
 				{1, 1048576}, // R20
 			},
-			clobbers: 607125504, // R20 R21 R26 R30
+			clobbers: 607322112, // R16 R17 R20 R21 R26 R30
 		},
 	},
 	{
@@ -20946,6 +21269,38 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:            "LoweredAtomicExchange64Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicExchange32Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:            "LoweredAtomicAdd64",
 		argLen:          3,
 		resultNotInArgs: true,
@@ -21050,7 +21405,63 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:            "LoweredAtomicCas64Variant",
+		argLen:          4,
+		resultNotInArgs: true,
+		clobberFlags:    true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{2, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicCas32Variant",
+		argLen:          4,
+		resultNotInArgs: true,
+		clobberFlags:    true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{2, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:            "LoweredAtomicAnd8",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
+		asm:             arm64.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicAnd32",
 		argLen:          3,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
@@ -21086,6 +21497,90 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:            "LoweredAtomicOr32",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
+		asm:             arm64.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicAnd8Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicAnd32Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicOr8Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicOr32Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:         "LoweredWB",
 		auxType:      auxSym,
 		argLen:       3,
@@ -21096,7 +21591,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4}, // R2
 				{1, 8}, // R3
 			},
-			clobbers: 9223372035244163072, // R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			clobbers: 9223372035244359680, // R16 R17 R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 		},
 	},
 	{
@@ -21545,6 +22040,19 @@ var opcodeTable = [...]opInfo{
 		name:   "SQRTD",
 		argLen: 1,
 		asm:    mips.ASQRTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
+			},
+			outputs: []outputInfo{
+				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
+			},
+		},
+	},
+	{
+		name:   "SQRTF",
+		argLen: 1,
+		asm:    mips.ASQRTF,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
@@ -23034,6 +23542,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "SQRTF",
+		argLen: 1,
+		asm:    mips.ASQRTF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1152921504338411520}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 1152921504338411520}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "SLLV",
 		argLen: 2,
 		asm:    mips.ASLLV,
@@ -24389,6 +24910,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MULLDconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     ppc64.AMULLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "MULLWconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     ppc64.AMULLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:   "MADDLD",
 		argLen: 3,
 		asm:    ppc64.AMADDLD,
@@ -24858,6 +25407,51 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "RLWINM",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.ARLWNM,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "RLWNM",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     ppc64.ARLWNM,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:         "RLWMI",
+		auxType:      auxInt64,
+		argLen:       2,
+		resultInArg0: true,
+		asm:          ppc64.ARLWMI,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 			outputs: []outputInfo{
 				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -26928,7 +27522,33 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "LoweredAtomicAnd32",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		asm:            ppc64.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:           "LoweredAtomicOr8",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		asm:            ppc64.AOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicOr32",
 		argLen:         3,
 		faultOnNilArg0: true,
 		hasSideEffects: true,
@@ -27018,11 +27638,11 @@ var opcodeTable = [...]opInfo{
 		asm:         riscv.AADD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27033,10 +27653,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.AADDI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27047,10 +27667,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.AADDIW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27060,10 +27680,10 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ANEG,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27073,10 +27693,10 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ANEGW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27086,11 +27706,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASUB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27100,11 +27720,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27115,11 +27735,11 @@ var opcodeTable = [...]opInfo{
 		asm:         riscv.AMUL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27130,11 +27750,11 @@ var opcodeTable = [...]opInfo{
 		asm:         riscv.AMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27145,11 +27765,11 @@ var opcodeTable = [...]opInfo{
 		asm:         riscv.AMULH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27160,11 +27780,11 @@ var opcodeTable = [...]opInfo{
 		asm:         riscv.AMULHU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27174,11 +27794,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ADIV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27188,11 +27808,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ADIVU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27202,11 +27822,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ADIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27216,11 +27836,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ADIVUW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27230,11 +27850,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AREM,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27244,11 +27864,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AREMU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27258,11 +27878,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AREMW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27272,11 +27892,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AREMUW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27289,46 +27909,10 @@ var opcodeTable = [...]opInfo{
 		asm:               riscv.AMOV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-			},
-		},
-	},
-	{
-		name:              "MOVBconst",
-		auxType:           auxInt8,
-		argLen:            0,
-		rematerializeable: true,
-		asm:               riscv.AMOV,
-		reg: regInfo{
-			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-			},
-		},
-	},
-	{
-		name:              "MOVHconst",
-		auxType:           auxInt16,
-		argLen:            0,
-		rematerializeable: true,
-		asm:               riscv.AMOV,
-		reg: regInfo{
-			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-			},
-		},
-	},
-	{
-		name:              "MOVWconst",
-		auxType:           auxInt32,
-		argLen:            0,
-		rematerializeable: true,
-		asm:               riscv.AMOV,
-		reg: regInfo{
-			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27340,7 +27924,7 @@ var opcodeTable = [...]opInfo{
 		asm:               riscv.AMOV,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27353,10 +27937,10 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27369,10 +27953,10 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27385,10 +27969,10 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27401,10 +27985,10 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27417,10 +28001,10 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVBU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27433,10 +28017,10 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVHU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27449,10 +28033,10 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVWU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27465,8 +28049,8 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1006632950},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27479,8 +28063,8 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1006632950},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27493,8 +28077,8 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1006632950},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27507,8 +28091,8 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1006632950},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27521,7 +28105,7 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27534,7 +28118,7 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27547,7 +28131,7 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27560,7 +28144,111 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:   "MOVBreg",
+		argLen: 1,
+		asm:    riscv.AMOVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "MOVHreg",
+		argLen: 1,
+		asm:    riscv.AMOVH,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "MOVWreg",
+		argLen: 1,
+		asm:    riscv.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "MOVDreg",
+		argLen: 1,
+		asm:    riscv.AMOV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "MOVBUreg",
+		argLen: 1,
+		asm:    riscv.AMOVBU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "MOVHUreg",
+		argLen: 1,
+		asm:    riscv.AMOVHU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "MOVWUreg",
+		argLen: 1,
+		asm:    riscv.AMOVWU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:         "MOVDnop",
+		argLen:       1,
+		resultInArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27570,11 +28258,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASLL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27584,11 +28272,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASRA,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27598,11 +28286,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27613,10 +28301,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.ASLLI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27627,10 +28315,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.ASRAI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27641,10 +28329,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.ASRLI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27655,11 +28343,11 @@ var opcodeTable = [...]opInfo{
 		asm:         riscv.AXOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27670,10 +28358,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.AXORI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27684,11 +28372,11 @@ var opcodeTable = [...]opInfo{
 		asm:         riscv.AOR,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27699,10 +28387,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.AORI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27713,11 +28401,11 @@ var opcodeTable = [...]opInfo{
 		asm:         riscv.AAND,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27728,10 +28416,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.AANDI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27741,10 +28429,10 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ANOT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27754,10 +28442,10 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASEQZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27767,10 +28455,10 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASNEZ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27780,11 +28468,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASLT,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27795,10 +28483,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.ASLTI,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27808,11 +28496,11 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.ASLTU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27823,10 +28511,10 @@ var opcodeTable = [...]opInfo{
 		asm:     riscv.ASLTIU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27836,10 +28524,10 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AMOV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27849,7 +28537,7 @@ var opcodeTable = [...]opInfo{
 		argLen:  1,
 		call:    true,
 		reg: regInfo{
-			clobbers: 9223372035781033980, // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			clobbers: 9223372035781033972, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 		},
 	},
 	{
@@ -27860,9 +28548,9 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 524288},     // X20
-				{0, 1073741814}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632950}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
-			clobbers: 9223372035781033980, // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			clobbers: 9223372035781033972, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 		},
 	},
 	{
@@ -27872,9 +28560,35 @@ var opcodeTable = [...]opInfo{
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
-			clobbers: 9223372035781033980, // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			clobbers: 9223372035781033972, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+		},
+	},
+	{
+		name:           "DUFFZERO",
+		auxType:        auxInt64,
+		argLen:         2,
+		faultOnNilArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 512}, // X10
+			},
+			clobbers: 512, // X10
+		},
+	},
+	{
+		name:           "DUFFCOPY",
+		auxType:        auxInt64,
+		argLen:         3,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1024}, // X11
+				{1, 512},  // X10
+			},
+			clobbers: 1536, // X10 X11
 		},
 	},
 	{
@@ -27885,7 +28599,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 16},         // X5
-				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			clobbers: 16, // X5
 		},
@@ -27900,7 +28614,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 16},         // X5
 				{1, 32},         // X6
-				{2, 1073741748}, // X3 X5 X6 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{2, 1006632884}, // X3 X5 X6 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			clobbers: 112, // X5 X6 X7
 		},
@@ -27911,10 +28625,10 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27924,10 +28638,10 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27937,10 +28651,10 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -27951,8 +28665,8 @@ var opcodeTable = [...]opInfo{
 		hasSideEffects: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1006632950},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27963,8 +28677,8 @@ var opcodeTable = [...]opInfo{
 		hasSideEffects: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1006632950},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27975,8 +28689,8 @@ var opcodeTable = [...]opInfo{
 		hasSideEffects: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1006632950},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 		},
 	},
@@ -27988,11 +28702,11 @@ var opcodeTable = [...]opInfo{
 		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741820},          // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517630}, // SP X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28004,11 +28718,11 @@ var opcodeTable = [...]opInfo{
 		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741820},          // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517630}, // SP X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28021,11 +28735,11 @@ var opcodeTable = [...]opInfo{
 		unsafePoint:     true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741820},          // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517630}, // SP X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28038,11 +28752,11 @@ var opcodeTable = [...]opInfo{
 		unsafePoint:     true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741820},          // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517630}, // SP X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28055,12 +28769,12 @@ var opcodeTable = [...]opInfo{
 		unsafePoint:     true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741820},          // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{2, 1073741820},          // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517630}, // SP X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{2, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28073,12 +28787,38 @@ var opcodeTable = [...]opInfo{
 		unsafePoint:     true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 1073741820},          // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{2, 1073741820},          // X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
-				{0, 9223372037928517630}, // SP X3 g X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{1, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{2, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicAnd32",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		asm:            riscv.AAMOANDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicOr32",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		asm:            riscv.AAMOORW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741812},          // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
 			},
 		},
 	},
@@ -28089,7 +28829,7 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741814}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632950}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28108,7 +28848,7 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28118,7 +28858,7 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28262,7 +29002,7 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AFMVSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28275,7 +29015,7 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AFCVTSW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28288,7 +29028,7 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AFCVTSL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28304,7 +29044,7 @@ var opcodeTable = [...]opInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28317,7 +29057,7 @@ var opcodeTable = [...]opInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28330,7 +29070,7 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVF,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28346,7 +29086,7 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVF,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 		},
@@ -28362,7 +29102,7 @@ var opcodeTable = [...]opInfo{
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28377,7 +29117,7 @@ var opcodeTable = [...]opInfo{
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28391,7 +29131,7 @@ var opcodeTable = [...]opInfo{
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28405,7 +29145,7 @@ var opcodeTable = [...]opInfo{
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28499,7 +29239,7 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AFMVDX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28512,7 +29252,7 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AFCVTDW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28525,7 +29265,7 @@ var opcodeTable = [...]opInfo{
 		asm:    riscv.AFCVTDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28541,7 +29281,7 @@ var opcodeTable = [...]opInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28554,7 +29294,7 @@ var opcodeTable = [...]opInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28593,7 +29333,7 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28609,7 +29349,7 @@ var opcodeTable = [...]opInfo{
 		asm:            riscv.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+				{0, 9223372037861408758}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30 SB
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 		},
@@ -28625,7 +29365,7 @@ var opcodeTable = [...]opInfo{
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28640,7 +29380,7 @@ var opcodeTable = [...]opInfo{
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28654,7 +29394,7 @@ var opcodeTable = [...]opInfo{
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -28668,7 +29408,7 @@ var opcodeTable = [...]opInfo{
 				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
-				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
@@ -30103,7 +30843,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SLDconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ASLD,
 		reg: regInfo{
@@ -30117,7 +30857,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SLWconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ASLW,
 		reg: regInfo{
@@ -30159,7 +30899,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SRDconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ASRD,
 		reg: regInfo{
@@ -30173,7 +30913,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SRWconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ASRW,
 		reg: regInfo{
@@ -30217,7 +30957,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SRADconst",
-		auxType:      auxInt8,
+		auxType:      auxUInt8,
 		argLen:       1,
 		clobberFlags: true,
 		asm:          s390x.ASRAD,
@@ -30232,7 +30972,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "SRAWconst",
-		auxType:      auxInt8,
+		auxType:      auxUInt8,
 		argLen:       1,
 		clobberFlags: true,
 		asm:          s390x.ASRAW,
@@ -30274,22 +31014,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "RLLGconst",
-		auxType: auxInt8,
-		argLen:  1,
-		asm:     s390x.ARLLG,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
 		name:    "RLLconst",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     s390x.ARLL,
 		reg: regInfo{
@@ -30312,6 +31038,21 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:         "RISBGZ",
+		auxType:      auxS390XRotateParams,
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ARISBGZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
@@ -30378,6 +31119,19 @@ var opcodeTable = [...]opInfo{
 		name:   "FSQRT",
 		argLen: 1,
 		asm:    s390x.AFSQRT,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "FSQRTS",
+		argLen: 1,
+		asm:    s390x.AFSQRTS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -31782,11 +32536,24 @@ var opcodeTable = [...]opInfo{
 		reg:    regInfo{},
 	},
 	{
-		name:           "LAOfloor",
+		name:           "LAN",
 		argLen:         3,
 		clobberFlags:   true,
 		hasSideEffects: true,
-		asm:            s390x.ALAO,
+		asm:            s390x.ALAN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+			},
+		},
+	},
+	{
+		name:           "LANfloor",
+		argLen:         3,
+		clobberFlags:   true,
+		hasSideEffects: true,
+		asm:            s390x.ALAN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
@@ -31796,11 +32563,24 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "LANfloor",
+		name:           "LAO",
 		argLen:         3,
 		clobberFlags:   true,
 		hasSideEffects: true,
-		asm:            s390x.ALAN,
+		asm:            s390x.ALAO,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
+				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+			},
+		},
+	},
+	{
+		name:           "LAOfloor",
+		argLen:         3,
+		clobberFlags:   true,
+		hasSideEffects: true,
+		asm:            s390x.ALAO,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},     // R1
@@ -33295,10 +34075,10 @@ var opcodeTable = [...]opInfo{
 		asm:    wasm.AF32Sqrt,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -33308,10 +34088,10 @@ var opcodeTable = [...]opInfo{
 		asm:    wasm.AF32Trunc,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -33321,10 +34101,10 @@ var opcodeTable = [...]opInfo{
 		asm:    wasm.AF32Ceil,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -33334,10 +34114,10 @@ var opcodeTable = [...]opInfo{
 		asm:    wasm.AF32Floor,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -33347,10 +34127,10 @@ var opcodeTable = [...]opInfo{
 		asm:    wasm.AF32Nearest,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -33360,10 +34140,10 @@ var opcodeTable = [...]opInfo{
 		asm:    wasm.AF32Abs,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -33373,11 +34153,11 @@ var opcodeTable = [...]opInfo{
 		asm:    wasm.AF32Copysign,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
-				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []outputInfo{
-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -34596,6 +35376,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Sqrt32",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "Floor",
 		argLen:  1,
 		generic: true,
@@ -34731,6 +35516,20 @@ var opcodeTable = [...]opInfo{
 		generic:   true,
 	},
 	{
+		name:      "ArgIntReg",
+		auxType:   auxNameOffsetInt8,
+		argLen:    0,
+		zeroWidth: true,
+		generic:   true,
+	},
+	{
+		name:      "ArgFloatReg",
+		auxType:   auxNameOffsetInt8,
+		argLen:    0,
+		zeroWidth: true,
+		generic:   true,
+	},
+	{
 		name:      "Addr",
 		auxType:   auxSym,
 		argLen:    1,
@@ -34833,26 +35632,40 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ClosureCall",
 		auxType: auxCallOff,
-		argLen:  3,
+		argLen:  -1,
 		call:    true,
 		generic: true,
 	},
 	{
 		name:    "StaticCall",
 		auxType: auxCallOff,
-		argLen:  1,
+		argLen:  -1,
 		call:    true,
 		generic: true,
 	},
 	{
 		name:    "InterCall",
 		auxType: auxCallOff,
-		argLen:  2,
+		argLen:  -1,
+		call:    true,
+		generic: true,
+	},
+	{
+		name:    "ClosureLECall",
+		auxType: auxCallOff,
+		argLen:  -1,
 		call:    true,
 		generic: true,
 	},
 	{
 		name:    "StaticLECall",
+		auxType: auxCallOff,
+		argLen:  -1,
+		call:    true,
+		generic: true,
+	},
+	{
+		name:    "InterLECall",
 		auxType: auxCallOff,
 		argLen:  -1,
 		call:    true,
@@ -35372,6 +36185,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "MakeResult",
+		argLen:  -1,
+		generic: true,
+	},
+	{
 		name:    "AtomicLoad8",
 		argLen:  2,
 		generic: true,
@@ -35393,6 +36211,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "AtomicLoadAcq32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AtomicLoadAcq64",
 		argLen:  2,
 		generic: true,
 	},
@@ -35422,6 +36245,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "AtomicStoreRel32",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicStoreRel64",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
@@ -35475,7 +36304,19 @@ var opcodeTable = [...]opInfo{
 		generic:        true,
 	},
 	{
+		name:           "AtomicAnd32",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
 		name:           "AtomicOr8",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicOr32",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
@@ -35493,22 +36334,75 @@ var opcodeTable = [...]opInfo{
 		generic:        true,
 	},
 	{
+		name:           "AtomicExchange32Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicExchange64Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicCompareAndSwap32Variant",
+		argLen:         4,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicCompareAndSwap64Variant",
+		argLen:         4,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicAnd8Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicAnd32Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicOr8Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicOr32Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
 		name:      "Clobber",
 		auxType:   auxSymOff,
 		argLen:    0,
 		symEffect: SymNone,
 		generic:   true,
 	},
+	{
+		name:    "ClobberReg",
+		argLen:  0,
+		generic: true,
+	},
 }
 
 func (o Op) Asm() obj.As          { return opcodeTable[o].asm }
 func (o Op) Scale() int16         { return int16(opcodeTable[o].scale) }
 func (o Op) String() string       { return opcodeTable[o].name }
-func (o Op) UsesScratch() bool    { return opcodeTable[o].usesScratch }
 func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }
 func (o Op) IsCall() bool         { return opcodeTable[o].call }
 func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }
 func (o Op) UnsafePoint() bool    { return opcodeTable[o].unsafePoint }
+func (o Op) ResultInArg0() bool   { return opcodeTable[o].resultInArg0 }
 
 var registers386 = [...]Register{
 	{0, x86.REG_AX, 0, "AX"},
@@ -35529,6 +36423,8 @@ var registers386 = [...]Register{
 	{15, x86.REG_X7, -1, "X7"},
 	{16, 0, -1, "SB"},
 }
+var paramIntReg386 = []int8(nil)
+var paramFloatReg386 = []int8(nil)
 var gpRegMask386 = regMask(239)
 var fpRegMask386 = regMask(65280)
 var specialRegMask386 = regMask(0)
@@ -35549,8 +36445,8 @@ var registersAMD64 = [...]Register{
 	{11, x86.REG_R11, 10, "R11"},
 	{12, x86.REG_R12, 11, "R12"},
 	{13, x86.REG_R13, 12, "R13"},
-	{14, x86.REG_R14, 13, "R14"},
-	{15, x86.REG_R15, 14, "R15"},
+	{14, x86.REGG, -1, "g"},
+	{15, x86.REG_R15, 13, "R15"},
 	{16, x86.REG_X0, -1, "X0"},
 	{17, x86.REG_X1, -1, "X1"},
 	{18, x86.REG_X2, -1, "X2"},
@@ -35569,9 +36465,11 @@ var registersAMD64 = [...]Register{
 	{31, x86.REG_X15, -1, "X15"},
 	{32, 0, -1, "SB"},
 }
-var gpRegMaskAMD64 = regMask(65519)
-var fpRegMaskAMD64 = regMask(4294901760)
-var specialRegMaskAMD64 = regMask(0)
+var paramIntRegAMD64 = []int8{0, 3, 1, 7, 6, 8, 9, 10, 11}
+var paramFloatRegAMD64 = []int8{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30}
+var gpRegMaskAMD64 = regMask(49135)
+var fpRegMaskAMD64 = regMask(2147418112)
+var specialRegMaskAMD64 = regMask(2147483648)
 var framepointerRegAMD64 = int8(5)
 var linkRegAMD64 = int8(-1)
 var registersARM = [...]Register{
@@ -35609,6 +36507,8 @@ var registersARM = [...]Register{
 	{31, arm.REG_F15, -1, "F15"},
 	{32, 0, -1, "SB"},
 }
+var paramIntRegARM = []int8(nil)
+var paramFloatRegARM = []int8(nil)
 var gpRegMaskARM = regMask(21503)
 var fpRegMaskARM = regMask(4294901760)
 var specialRegMaskARM = regMask(0)
@@ -35680,6 +36580,8 @@ var registersARM64 = [...]Register{
 	{62, arm64.REG_F31, -1, "F31"},
 	{63, 0, -1, "SB"},
 }
+var paramIntRegARM64 = []int8(nil)
+var paramFloatRegARM64 = []int8(nil)
 var gpRegMaskARM64 = regMask(670826495)
 var fpRegMaskARM64 = regMask(9223372034707292160)
 var specialRegMaskARM64 = regMask(0)
@@ -35735,6 +36637,8 @@ var registersMIPS = [...]Register{
 	{46, mips.REG_LO, -1, "LO"},
 	{47, 0, -1, "SB"},
 }
+var paramIntRegMIPS = []int8(nil)
+var paramFloatRegMIPS = []int8(nil)
 var gpRegMaskMIPS = regMask(335544318)
 var fpRegMaskMIPS = regMask(35183835217920)
 var specialRegMaskMIPS = regMask(105553116266496)
@@ -35805,6 +36709,8 @@ var registersMIPS64 = [...]Register{
 	{61, mips.REG_LO, -1, "LO"},
 	{62, 0, -1, "SB"},
 }
+var paramIntRegMIPS64 = []int8(nil)
+var paramFloatRegMIPS64 = []int8(nil)
 var gpRegMaskMIPS64 = regMask(167772158)
 var fpRegMaskMIPS64 = regMask(1152921504338411520)
 var specialRegMaskMIPS64 = regMask(3458764513820540928)
@@ -35876,6 +36782,8 @@ var registersPPC64 = [...]Register{
 	{62, ppc64.REG_F30, -1, "F30"},
 	{63, ppc64.REG_F31, -1, "F31"},
 }
+var paramIntRegPPC64 = []int8(nil)
+var paramFloatRegPPC64 = []int8(nil)
 var gpRegMaskPPC64 = regMask(1073733624)
 var fpRegMaskPPC64 = regMask(576460743713488896)
 var specialRegMaskPPC64 = regMask(0)
@@ -35885,7 +36793,7 @@ var registersRISCV64 = [...]Register{
 	{0, riscv.REG_X0, -1, "X0"},
 	{1, riscv.REGSP, -1, "SP"},
 	{2, riscv.REG_X3, 0, "X3"},
-	{3, riscv.REGG, -1, "g"},
+	{3, riscv.REG_X4, -1, "X4"},
 	{4, riscv.REG_X5, 1, "X5"},
 	{5, riscv.REG_X6, 2, "X6"},
 	{6, riscv.REG_X7, 3, "X7"},
@@ -35908,10 +36816,10 @@ var registersRISCV64 = [...]Register{
 	{23, riscv.REG_X24, 20, "X24"},
 	{24, riscv.REG_X25, 21, "X25"},
 	{25, riscv.REG_X26, 22, "X26"},
-	{26, riscv.REG_X27, 23, "X27"},
-	{27, riscv.REG_X28, 24, "X28"},
-	{28, riscv.REG_X29, 25, "X29"},
-	{29, riscv.REG_X30, 26, "X30"},
+	{26, riscv.REGG, -1, "g"},
+	{27, riscv.REG_X28, 23, "X28"},
+	{28, riscv.REG_X29, 24, "X29"},
+	{29, riscv.REG_X30, 25, "X30"},
 	{30, riscv.REG_X31, -1, "X31"},
 	{31, riscv.REG_F0, -1, "F0"},
 	{32, riscv.REG_F1, -1, "F1"},
@@ -35947,7 +36855,9 @@ var registersRISCV64 = [...]Register{
 	{62, riscv.REG_F31, -1, "F31"},
 	{63, 0, -1, "SB"},
 }
-var gpRegMaskRISCV64 = regMask(1073741812)
+var paramIntRegRISCV64 = []int8(nil)
+var paramFloatRegRISCV64 = []int8(nil)
+var gpRegMaskRISCV64 = regMask(1006632948)
 var fpRegMaskRISCV64 = regMask(9223372034707292160)
 var specialRegMaskRISCV64 = regMask(0)
 var framepointerRegRISCV64 = int8(-1)
@@ -35987,6 +36897,8 @@ var registersS390X = [...]Register{
 	{31, s390x.REG_F15, -1, "F15"},
 	{32, 0, -1, "SB"},
 }
+var paramIntRegS390X = []int8(nil)
+var paramFloatRegS390X = []int8(nil)
 var gpRegMaskS390X = regMask(23551)
 var fpRegMaskS390X = regMask(4294901760)
 var specialRegMaskS390X = regMask(0)
@@ -36045,6 +36957,8 @@ var registersWasm = [...]Register{
 	{49, wasm.REGG, -1, "g"},
 	{50, 0, -1, "SB"},
 }
+var paramIntRegWasm = []int8(nil)
+var paramFloatRegWasm = []int8(nil)
 var gpRegMaskWasm = regMask(65535)
 var fpRegMaskWasm = regMask(281474976645120)
 var fp32RegMaskWasm = regMask(4294901760)

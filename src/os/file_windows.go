@@ -168,7 +168,7 @@ func openDir(name string) (file *File, err error) {
 // openFileNolog is the Windows implementation of OpenFile.
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if name == "" {
-		return nil, &PathError{"open", name, syscall.ENOENT}
+		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
 	}
 	r, errf := openFile(name, flag, perm)
 	if errf == nil {
@@ -178,11 +178,11 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if errd == nil {
 		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
 			r.Close()
-			return nil, &PathError{"open", name, syscall.EISDIR}
+			return nil, &PathError{Op: "open", Path: name, Err: syscall.EISDIR}
 		}
 		return r, nil
 	}
-	return nil, &PathError{"open", name, errf}
+	return nil, &PathError{Op: "open", Path: name, Err: errf}
 }
 
 func (file *file) close() error {
@@ -198,7 +198,7 @@ func (file *file) close() error {
 		if e == poll.ErrFileClosing {
 			e = ErrClosed
 		}
-		err = &PathError{"close", file.name, e}
+		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
 	// no need for a finalizer anymore
@@ -236,7 +236,7 @@ func Truncate(name string, size int64) error {
 func Remove(name string) error {
 	p, e := syscall.UTF16PtrFromString(fixLongPath(name))
 	if e != nil {
-		return &PathError{"remove", name, e}
+		return &PathError{Op: "remove", Path: name, Err: e}
 	}
 
 	// Go file interface forces us to know whether
@@ -267,7 +267,7 @@ func Remove(name string) error {
 			}
 		}
 	}
-	return &PathError{"remove", name, e}
+	return &PathError{Op: "remove", Path: name, Err: e}
 }
 
 func rename(oldname, newname string) error {
@@ -279,10 +279,11 @@ func rename(oldname, newname string) error {
 }
 
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an error, if any.
+// It returns the files and an error, if any. The Windows handles underlying
+// the returned files are marked as inheritable by child processes.
 func Pipe() (r *File, w *File, err error) {
 	var p [2]syscall.Handle
-	e := syscall.CreatePipe(&p[0], &p[1], nil, 0)
+	e := syscall.Pipe(p[:])
 	if e != nil {
 		return nil, nil, NewSyscallError("pipe", e)
 	}
@@ -493,7 +494,7 @@ func readlink(path string) (string, error) {
 func Readlink(name string) (string, error) {
 	s, err := readlink(fixLongPath(name))
 	if err != nil {
-		return "", &PathError{"readlink", name, err}
+		return "", &PathError{Op: "readlink", Path: name, Err: err}
 	}
 	return s, nil
 }

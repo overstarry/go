@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -270,11 +271,11 @@ func writebarrier(f *Func) {
 			case OpMoveWB:
 				fn = typedmemmove
 				val = w.Args[1]
-				typ = w.Aux.(*types.Type).Symbol()
+				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
 				nWBops--
 			case OpZeroWB:
 				fn = typedmemclr
-				typ = w.Aux.(*types.Type).Symbol()
+				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
 				nWBops--
 			case OpVarDef, OpVarLive, OpVarKill:
 			}
@@ -482,38 +483,56 @@ func (f *Func) computeZeroMap() map[ID]ZeroRegion {
 func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value) *Value {
 	config := b.Func.Config
 
+	var wbargs []*Value
+	// TODO (register args) this is a bit of a hack.
+	inRegs := b.Func.ABIDefault == b.Func.ABI1 && len(config.intParamRegs) >= 3
+
 	// put arguments on stack
 	off := config.ctxt.FixedFrameSize()
 
-	var ACArgs []Param
+	var argTypes []*types.Type
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
-		off = round(off, taddr.Type.Alignment())
-		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
-		ACArgs = append(ACArgs, Param{Type: b.Func.Config.Types.Uintptr, Offset: int32(off)})
-		off += taddr.Type.Size()
+		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
+		if inRegs {
+			wbargs = append(wbargs, taddr)
+		} else {
+			off = round(off, taddr.Type.Alignment())
+			arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
+			mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
+			off += taddr.Type.Size()
+		}
 	}
 
-	off = round(off, ptr.Type.Alignment())
-	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
-	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
-	ACArgs = append(ACArgs, Param{Type: ptr.Type, Offset: int32(off)})
-	off += ptr.Type.Size()
+	argTypes = append(argTypes, ptr.Type)
+	if inRegs {
+		wbargs = append(wbargs, ptr)
+	} else {
+		off = round(off, ptr.Type.Alignment())
+		arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
+		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
+		off += ptr.Type.Size()
+	}
 
 	if val != nil {
-		off = round(off, val.Type.Alignment())
-		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
-		ACArgs = append(ACArgs, Param{Type: val.Type, Offset: int32(off)})
-		off += val.Type.Size()
+		argTypes = append(argTypes, val.Type)
+		if inRegs {
+			wbargs = append(wbargs, val)
+		} else {
+			off = round(off, val.Type.Alignment())
+			arg := b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
+			mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
+			off += val.Type.Size()
+		}
 	}
 	off = round(off, config.PtrSize)
+	wbargs = append(wbargs, mem)
 
 	// issue call
-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, StaticAuxCall(fn, ACArgs, nil), mem)
-	mem.AuxInt = off - config.ctxt.FixedFrameSize()
-	return mem
+	call := b.NewValue0A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)))
+	call.AddArgs(wbargs...)
+	call.AuxInt = off - config.ctxt.FixedFrameSize()
+	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
 }
 
 // round to a multiple of r, r is a power of 2
@@ -527,7 +546,7 @@ func IsStackAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr:
 		return true
 	}
 	return false
@@ -561,12 +580,20 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 
 // IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object at memory state mem.
 func IsNewObject(v *Value, mem *Value) bool {
+	// TODO this will need updating for register args; the OpLoad is wrong.
 	if v.Op != OpLoad {
 		return false
 	}
 	if v.MemoryArg() != mem {
 		return false
 	}
+	if mem.Op != OpSelectN {
+		return false
+	}
+	if mem.Type != types.TypeMem {
+		return false
+	} // assume it is the right selection if true
+	mem = mem.Args[0]
 	if mem.Op != OpStaticCall {
 		return false
 	}
@@ -593,7 +620,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr:
 		// Stack addresses are always safe.
 		return true
 	case OpITab, OpStringPtr, OpGetClosurePtr:
@@ -609,7 +636,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 // isVolatile reports whether v is a pointer to argument region on stack which
 // will be clobbered by a function call.
 func isVolatile(v *Value) bool {
-	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy || v.Op == OpSelectNAddr {
 		v = v.Args[0]
 	}
 	return v.Op == OpSP

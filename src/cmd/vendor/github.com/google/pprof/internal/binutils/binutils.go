@@ -18,7 +18,9 @@ package binutils
 import (
 	"debug/elf"
 	"debug/macho"
+	"debug/pe"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +28,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -39,6 +42,8 @@ type Binutils struct {
 	rep *binrep
 }
 
+var objdumpLLVMVerRE = regexp.MustCompile(`LLVM version (?:(\d*)\.(\d*)\.(\d*)|.*(trunk).*)`)
+
 // binrep is an immutable representation for Binutils.  It is atomically
 // replaced on every mutation to provide thread-safe access.
 type binrep struct {
@@ -51,6 +56,7 @@ type binrep struct {
 	nmFound             bool
 	objdump             string
 	objdumpFound        bool
+	isLLVMObjdump       bool
 
 	// if fast, perform symbolization using nm (symbol names only),
 	// instead of file-line detail from the slower addr2line.
@@ -132,15 +138,103 @@ func initTools(b *binrep, config string) {
 	}
 
 	defaultPath := paths[""]
-	b.llvmSymbolizer, b.llvmSymbolizerFound = findExe("llvm-symbolizer", append(paths["llvm-symbolizer"], defaultPath...))
-	b.addr2line, b.addr2lineFound = findExe("addr2line", append(paths["addr2line"], defaultPath...))
-	if !b.addr2lineFound {
-		// On MacOS, brew installs addr2line under gaddr2line name, so search for
-		// that if the tool is not found by its default name.
-		b.addr2line, b.addr2lineFound = findExe("gaddr2line", append(paths["addr2line"], defaultPath...))
+	b.llvmSymbolizer, b.llvmSymbolizerFound = chooseExe([]string{"llvm-symbolizer"}, []string{}, append(paths["llvm-symbolizer"], defaultPath...))
+	b.addr2line, b.addr2lineFound = chooseExe([]string{"addr2line"}, []string{"gaddr2line"}, append(paths["addr2line"], defaultPath...))
+	// The "-n" option is supported by LLVM since 2011. The output of llvm-nm
+	// and GNU nm with "-n" option is interchangeable for our purposes, so we do
+	// not need to differrentiate them.
+	b.nm, b.nmFound = chooseExe([]string{"llvm-nm", "nm"}, []string{"gnm"}, append(paths["nm"], defaultPath...))
+	b.objdump, b.objdumpFound, b.isLLVMObjdump = findObjdump(append(paths["objdump"], defaultPath...))
+}
+
+// findObjdump finds and returns path to preferred objdump binary.
+// Order of preference is: llvm-objdump, objdump.
+// On MacOS only, also looks for gobjdump with least preference.
+// Accepts a list of paths and returns:
+// a string with path to the preferred objdump binary if found,
+// or an empty string if not found;
+// a boolean if any acceptable objdump was found;
+// a boolean indicating if it is an LLVM objdump.
+func findObjdump(paths []string) (string, bool, bool) {
+	objdumpNames := []string{"llvm-objdump", "objdump"}
+	if runtime.GOOS == "darwin" {
+		objdumpNames = append(objdumpNames, "gobjdump")
 	}
-	b.nm, b.nmFound = findExe("nm", append(paths["nm"], defaultPath...))
-	b.objdump, b.objdumpFound = findExe("objdump", append(paths["objdump"], defaultPath...))
+
+	for _, objdumpName := range objdumpNames {
+		if objdump, objdumpFound := findExe(objdumpName, paths); objdumpFound {
+			cmdOut, err := exec.Command(objdump, "--version").Output()
+			if err != nil {
+				continue
+			}
+			if isLLVMObjdump(string(cmdOut)) {
+				return objdump, true, true
+			}
+			if isBuObjdump(string(cmdOut)) {
+				return objdump, true, false
+			}
+		}
+	}
+	return "", false, false
+}
+
+// chooseExe finds and returns path to preferred binary. names is a list of
+// names to search on both Linux and OSX. osxNames is a list of names specific
+// to OSX. names always has a higher priority than osxNames. The order of
+// the name within each list decides its priority (e.g. the first name has a
+// higher priority than the second name in the list).
+//
+// It returns a string with path to the binary and a boolean indicating if any
+// acceptable binary was found.
+func chooseExe(names, osxNames []string, paths []string) (string, bool) {
+	if runtime.GOOS == "darwin" {
+		names = append(names, osxNames...)
+	}
+	for _, name := range names {
+		if binary, found := findExe(name, paths); found {
+			return binary, true
+		}
+	}
+	return "", false
+}
+
+// isLLVMObjdump accepts a string with path to an objdump binary,
+// and returns a boolean indicating if the given binary is an LLVM
+// objdump binary of an acceptable version.
+func isLLVMObjdump(output string) bool {
+	fields := objdumpLLVMVerRE.FindStringSubmatch(output)
+	if len(fields) != 5 {
+		return false
+	}
+	if fields[4] == "trunk" {
+		return true
+	}
+	verMajor, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return false
+	}
+	verPatch, err := strconv.Atoi(fields[3])
+	if err != nil {
+		return false
+	}
+	if runtime.GOOS == "linux" && verMajor >= 8 {
+		// Ensure LLVM objdump is at least version 8.0 on Linux.
+		// Some flags, like --demangle, and double dashes for options are
+		// not supported by previous versions.
+		return true
+	}
+	if runtime.GOOS == "darwin" {
+		// Ensure LLVM objdump is at least version 10.0.1 on MacOS.
+		return verMajor > 10 || (verMajor == 10 && verPatch >= 1)
+	}
+	return false
+}
+
+// isBuObjdump accepts a string with path to an objdump binary,
+// and returns a boolean indicating if the given binary is a GNU
+// binutils objdump binary. No version check is performed.
+func isBuObjdump(output string) bool {
+	return strings.Contains(output, "GNU objdump")
 }
 
 // findExe looks for an executable command on a set of paths.
@@ -157,12 +251,25 @@ func findExe(cmd string, paths []string) (string, bool) {
 
 // Disasm returns the assembly instructions for the specified address range
 // of a binary.
-func (bu *Binutils) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
+func (bu *Binutils) Disasm(file string, start, end uint64, intelSyntax bool) ([]plugin.Inst, error) {
 	b := bu.get()
-	cmd := exec.Command(b.objdump, "-d", "-C", "--no-show-raw-insn", "-l",
-		fmt.Sprintf("--start-address=%#x", start),
-		fmt.Sprintf("--stop-address=%#x", end),
-		file)
+	if !b.objdumpFound {
+		return nil, errors.New("cannot disasm: no objdump tool available")
+	}
+	args := []string{"--disassemble", "--demangle", "--no-show-raw-insn",
+		"--line-numbers", fmt.Sprintf("--start-address=%#x", start),
+		fmt.Sprintf("--stop-address=%#x", end)}
+
+	if intelSyntax {
+		if b.isLLVMObjdump {
+			args = append(args, "--x86-asm-syntax=intel")
+		} else {
+			args = append(args, "-M", "intel")
+		}
+	}
+
+	args = append(args, file)
+	cmd := exec.Command(b.objdump, args...)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("%v: %v", cmd.Args, err)
@@ -227,6 +334,15 @@ func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFi
 		f, err := b.openFatMachO(name, start, limit, offset)
 		if err != nil {
 			return nil, fmt.Errorf("error reading fat Mach-O file %s: %v", name, err)
+		}
+		return f, nil
+	}
+
+	peMagic := string(header[:2])
+	if peMagic == "MZ" {
+		f, err := b.openPE(name, start, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("error reading PE file %s: %v", name, err)
 		}
 		return f, nil
 	}
@@ -334,7 +450,23 @@ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFi
 		}
 	}
 
-	base, err := elfexec.GetBase(&ef.FileHeader, elfexec.FindTextProgHeader(ef), stextOffset, start, limit, offset)
+	var ph *elf.ProgHeader
+	// For user space executables, find the actual program segment that is
+	// associated with the given mapping. Skip this search if limit <= start.
+	// We cannot use just a check on the start address of the mapping to tell if
+	// it's a kernel / .ko module mapping, because with quipper address remapping
+	// enabled, the address would be in the lower half of the address space.
+	if stextOffset == nil && start < limit && limit < (uint64(1)<<63) {
+		ph, err = elfexec.FindProgHeaderForMapping(ef, offset, limit-start)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find program header for file %q, mapping pgoff %x, memsz=%x: %v", name, offset, limit-start, err)
+		}
+	} else {
+		// For the kernel, find the program segment that includes the .text section.
+		ph = elfexec.FindTextProgHeader(ef)
+	}
+
+	base, err := elfexec.GetBase(&ef.FileHeader, ph, stextOffset, start, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("could not identify base for %s: %v", name, err)
 	}
@@ -345,10 +477,38 @@ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFi
 			buildID = fmt.Sprintf("%x", id)
 		}
 	}
+	isData := ph != nil && ph.Flags&elf.PF_X == 0
 	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
-		return &fileNM{file: file{b, name, base, buildID}}, nil
+		return &fileNM{file: file{b, name, base, buildID, isData}}, nil
 	}
-	return &fileAddr2Line{file: file{b, name, base, buildID}}, nil
+	return &fileAddr2Line{file: file{b, name, base, buildID, isData}}, nil
+}
+
+func (b *binrep) openPE(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+	pf, err := pe.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
+	}
+	defer pf.Close()
+
+	var imageBase uint64
+	switch h := pf.OptionalHeader.(type) {
+	case *pe.OptionalHeader32:
+		imageBase = uint64(h.ImageBase)
+	case *pe.OptionalHeader64:
+		imageBase = uint64(h.ImageBase)
+	default:
+		return nil, fmt.Errorf("unknown OptionalHeader %T", pf.OptionalHeader)
+	}
+
+	var base uint64
+	if start > 0 {
+		base = start - imageBase
+	}
+	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
+		return &fileNM{file: file{b: b, name: name, base: base}}, nil
+	}
+	return &fileAddr2Line{file: file{b: b, name: name, base: base}}, nil
 }
 
 // file implements the binutils.ObjFile interface.
@@ -357,6 +517,7 @@ type file struct {
 	name    string
 	base    uint64
 	buildID string
+	isData  bool
 }
 
 func (f *file) Name() string {
@@ -432,7 +593,7 @@ func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
 }
 
 func (f *fileAddr2Line) init() {
-	if llvmSymbolizer, err := newLLVMSymbolizer(f.b.llvmSymbolizer, f.name, f.base); err == nil {
+	if llvmSymbolizer, err := newLLVMSymbolizer(f.b.llvmSymbolizer, f.name, f.base, f.isData); err == nil {
 		f.llvmSymbolizer = llvmSymbolizer
 		return
 	}

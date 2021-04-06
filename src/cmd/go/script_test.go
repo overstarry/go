@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/testenv"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,8 +39,33 @@ import (
 // TestScript runs the tests in testdata/script/*.txt.
 func TestScript(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	if skipExternal {
-		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
+	testenv.SkipIfShortAndSlow(t)
+
+	var (
+		ctx         = context.Background()
+		gracePeriod = 100 * time.Millisecond
+	)
+	if deadline, ok := t.Deadline(); ok {
+		timeout := time.Until(deadline)
+
+		// If time allows, increase the termination grace period to 5% of the
+		// remaining time.
+		if gp := timeout / 20; gp > gracePeriod {
+			gracePeriod = gp
+		}
+
+		// When we run commands that execute subprocesses, we want to reserve two
+		// grace periods to clean up. We will send the first termination signal when
+		// the context expires, then wait one grace period for the process to
+		// produce whatever useful output it can (such as a stack trace). After the
+		// first grace period expires, we'll escalate to os.Kill, leaving the second
+		// grace period for the test function to record its output before the test
+		// process itself terminates.
+		timeout -= 2 * gracePeriod
+
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		t.Cleanup(cancel)
 	}
 
 	files, err := filepath.Glob("testdata/script/*.txt")
@@ -52,40 +77,51 @@ func TestScript(t *testing.T) {
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			ts := &testScript{t: t, name: name, file: file}
+			ctx, cancel := context.WithCancel(ctx)
+			ts := &testScript{
+				t:           t,
+				ctx:         ctx,
+				cancel:      cancel,
+				gracePeriod: gracePeriod,
+				name:        name,
+				file:        file,
+			}
 			ts.setup()
 			if !*testWork {
 				defer removeAll(ts.workdir)
 			}
 			ts.run()
+			cancel()
 		})
 	}
 }
 
 // A testScript holds execution state for a single test script.
 type testScript struct {
-	t          *testing.T
-	workdir    string            // temporary work dir ($WORK)
-	log        bytes.Buffer      // test execution log (printed at end of test)
-	mark       int               // offset of next log truncation
-	cd         string            // current directory during test execution; initially $WORK/gopath/src
-	name       string            // short name of test ("foo")
-	file       string            // full file name ("testdata/script/foo.txt")
-	lineno     int               // line number currently executing
-	line       string            // line currently executing
-	env        []string          // environment list (for os/exec)
-	envMap     map[string]string // environment mapping (matches env)
-	stdout     string            // standard output from last 'go' command; for 'stdout' command
-	stderr     string            // standard error from last 'go' command; for 'stderr' command
-	stopped    bool              // test wants to stop early
-	start      time.Time         // time phase started
-	background []*backgroundCmd  // backgrounded 'exec' and 'go' commands
+	t           *testing.T
+	ctx         context.Context
+	cancel      context.CancelFunc
+	gracePeriod time.Duration
+	workdir     string            // temporary work dir ($WORK)
+	log         bytes.Buffer      // test execution log (printed at end of test)
+	mark        int               // offset of next log truncation
+	cd          string            // current directory during test execution; initially $WORK/gopath/src
+	name        string            // short name of test ("foo")
+	file        string            // full file name ("testdata/script/foo.txt")
+	lineno      int               // line number currently executing
+	line        string            // line currently executing
+	env         []string          // environment list (for os/exec)
+	envMap      map[string]string // environment mapping (matches env)
+	stdout      string            // standard output from last 'go' command; for 'stdout' command
+	stderr      string            // standard error from last 'go' command; for 'stderr' command
+	stopped     bool              // test wants to stop early
+	start       time.Time         // time phase started
+	background  []*backgroundCmd  // backgrounded 'exec' and 'go' commands
 }
 
 type backgroundCmd struct {
 	want           simpleStatus
 	args           []string
-	cancel         context.CancelFunc
 	done           <-chan struct{}
 	err            error
 	stdout, stderr strings.Builder
@@ -111,6 +147,10 @@ var extraEnvKeys = []string{
 
 // setup sets up the test execution temporary directory and environment.
 func (ts *testScript) setup() {
+	if err := ts.ctx.Err(); err != nil {
+		ts.t.Fatalf("test interrupted during setup: %v", err)
+	}
+
 	StartProxy()
 	ts.workdir = filepath.Join(testTmpDir, "script-"+ts.name)
 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
@@ -136,11 +176,15 @@ func (ts *testScript) setup() {
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",
+		"GOVCS=*:all",
 		"PWD=" + ts.cd,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),
 		":=" + string(os.PathListSeparator),
+	}
+	if !testenv.HasExternalNetwork() {
+		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
 	}
 
 	if runtime.GOOS == "plan9" {
@@ -198,9 +242,7 @@ func (ts *testScript) run() {
 		// On a normal exit from the test loop, background processes are cleaned up
 		// before we print PASS. If we return early (e.g., due to a test failure),
 		// don't print anything about the processes that were still running.
-		for _, bg := range ts.background {
-			bg.cancel()
-		}
+		ts.cancel()
 		for _, bg := range ts.background {
 			<-bg.done
 		}
@@ -217,7 +259,7 @@ func (ts *testScript) run() {
 	for _, f := range a.Files {
 		name := ts.mkabs(ts.expand(f.Name, false))
 		ts.check(os.MkdirAll(filepath.Dir(name), 0777))
-		ts.check(ioutil.WriteFile(name, f.Data, 0666))
+		ts.check(os.WriteFile(name, f.Data, 0666))
 	}
 
 	// With -v or -testwork, start log with full environment.
@@ -273,6 +315,10 @@ Script:
 		fmt.Fprintf(&ts.log, "> %s\n", line)
 
 		for _, cond := range parsed.conds {
+			if err := ts.ctx.Err(); err != nil {
+				ts.fatalf("test interrupted: %v", err)
+			}
+
 			// Known conds are: $GOOS, $GOARCH, runtime.Compiler, and 'short' (for testing.Short).
 			//
 			// NOTE: If you make changes here, update testdata/script/README too!
@@ -354,9 +400,7 @@ Script:
 		}
 	}
 
-	for _, bg := range ts.background {
-		bg.cancel()
-	}
+	ts.cancel()
 	ts.cmdWait(success, nil)
 
 	// Final phase ended.
@@ -374,19 +418,19 @@ var (
 
 func isCaseSensitive(t *testing.T) bool {
 	onceCaseSensitive.Do(func() {
-		tmpdir, err := ioutil.TempDir("", "case-sensitive")
+		tmpdir, err := os.MkdirTemp("", "case-sensitive")
 		if err != nil {
 			t.Fatal("failed to create directory to determine case-sensitivity:", err)
 		}
 		defer os.RemoveAll(tmpdir)
 
 		fcap := filepath.Join(tmpdir, "FILE")
-		if err := ioutil.WriteFile(fcap, []byte{}, 0644); err != nil {
+		if err := os.WriteFile(fcap, []byte{}, 0644); err != nil {
 			t.Fatal("error writing file to determine case-sensitivity:", err)
 		}
 
 		flow := filepath.Join(tmpdir, "file")
-		_, err = ioutil.ReadFile(flow)
+		_, err = os.ReadFile(flow)
 		switch {
 		case err == nil:
 			caseSensitive = false
@@ -447,9 +491,9 @@ func (ts *testScript) cmdAddcrlf(want simpleStatus, args []string) {
 
 	for _, file := range args {
 		file = ts.mkabs(file)
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		ts.check(err)
-		ts.check(ioutil.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
+		ts.check(os.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
 	}
 }
 
@@ -500,7 +544,7 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
 		ts.fatalf("usage: chmod perm paths...")
 	}
 	perm, err := strconv.ParseUint(args[0], 0, 32)
-	if err != nil || perm&uint64(os.ModePerm) != perm {
+	if err != nil || perm&uint64(fs.ModePerm) != perm {
 		ts.fatalf("invalid mode: %s", args[0])
 	}
 	for _, arg := range args[1:] {
@@ -508,7 +552,7 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(ts.cd, arg)
 		}
-		err := os.Chmod(path, os.FileMode(perm))
+		err := os.Chmod(path, fs.FileMode(perm))
 		ts.check(err)
 	}
 }
@@ -554,12 +598,12 @@ func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
 	} else if name1 == "stderr" {
 		text1 = ts.stderr
 	} else {
-		data, err := ioutil.ReadFile(ts.mkabs(name1))
+		data, err := os.ReadFile(ts.mkabs(name1))
 		ts.check(err)
 		text1 = string(data)
 	}
 
-	data, err := ioutil.ReadFile(ts.mkabs(name2))
+	data, err := os.ReadFile(ts.mkabs(name2))
 	ts.check(err)
 	text2 = string(data)
 
@@ -595,7 +639,7 @@ func (ts *testScript) cmdCp(want simpleStatus, args []string) {
 		var (
 			src  string
 			data []byte
-			mode os.FileMode
+			mode fs.FileMode
 		)
 		switch arg {
 		case "stdout":
@@ -611,14 +655,14 @@ func (ts *testScript) cmdCp(want simpleStatus, args []string) {
 			info, err := os.Stat(src)
 			ts.check(err)
 			mode = info.Mode() & 0777
-			data, err = ioutil.ReadFile(src)
+			data, err = os.ReadFile(src)
 			ts.check(err)
 		}
 		targ := dst
 		if dstDir {
 			targ = filepath.Join(dst, filepath.Base(src))
 		}
-		err := ioutil.WriteFile(targ, data, mode)
+		err := os.WriteFile(targ, data, mode)
 		switch want {
 		case failure:
 			if err == nil {
@@ -796,9 +840,7 @@ func (ts *testScript) cmdSkip(want simpleStatus, args []string) {
 
 	// Before we mark the test as skipped, shut down any background processes and
 	// make sure they have returned the correct status.
-	for _, bg := range ts.background {
-		bg.cancel()
-	}
+	ts.cancel()
 	ts.cmdWait(success, nil)
 
 	if len(args) == 1 {
@@ -894,7 +936,7 @@ func scriptMatch(ts *testScript, want simpleStatus, args []string, text, name st
 	isGrep := name == "grep"
 	if isGrep {
 		name = args[1] // for error messages
-		data, err := ioutil.ReadFile(ts.mkabs(args[1]))
+		data, err := os.ReadFile(ts.mkabs(args[1]))
 		ts.check(err)
 		text = string(data)
 	}
@@ -1063,38 +1105,9 @@ func (ts *testScript) exec(command string, args ...string) (stdout, stderr strin
 func (ts *testScript) startBackground(want simpleStatus, command string, args ...string) (*backgroundCmd, error) {
 	done := make(chan struct{})
 	bg := &backgroundCmd{
-		want:   want,
-		args:   append([]string{command}, args...),
-		done:   done,
-		cancel: func() {},
-	}
-
-	ctx := context.Background()
-	gracePeriod := 100 * time.Millisecond
-	if deadline, ok := ts.t.Deadline(); ok {
-		timeout := time.Until(deadline)
-		// If time allows, increase the termination grace period to 5% of the
-		// remaining time.
-		if gp := timeout / 20; gp > gracePeriod {
-			gracePeriod = gp
-		}
-
-		// Send the first termination signal with two grace periods remaining.
-		// If it still hasn't finished after the first period has elapsed,
-		// we'll escalate to os.Kill with a second period remaining until the
-		// test deadline..
-		timeout -= 2 * gracePeriod
-
-		if timeout <= 0 {
-			// The test has less than the grace period remaining. There is no point in
-			// even starting the command, because it will be terminated immediately.
-			// Save the expense of starting it in the first place.
-			bg.err = context.DeadlineExceeded
-			close(done)
-			return bg, nil
-		}
-
-		ctx, bg.cancel = context.WithTimeout(ctx, timeout)
+		want: want,
+		args: append([]string{command}, args...),
+		done: done,
 	}
 
 	cmd := exec.Command(command, args...)
@@ -1103,12 +1116,11 @@ func (ts *testScript) startBackground(want simpleStatus, command string, args ..
 	cmd.Stdout = &bg.stdout
 	cmd.Stderr = &bg.stderr
 	if err := cmd.Start(); err != nil {
-		bg.cancel()
 		return nil, err
 	}
 
 	go func() {
-		bg.err = waitOrStop(ctx, cmd, stopSignal(), gracePeriod)
+		bg.err = waitOrStop(ts.ctx, cmd, stopSignal(), ts.gracePeriod)
 		close(done)
 	}()
 	return bg, nil
@@ -1256,7 +1268,12 @@ func (ts *testScript) parse(line string) command {
 
 		if cmd.name != "" {
 			cmd.args = append(cmd.args, arg)
-			isRegexp = false // Commands take only one regexp argument, so no subsequent args are regexps.
+			// Commands take only one regexp argument (after the optional flags),
+			// so no subsequent args are regexps. Liberally assume an argument that
+			// starts with a '-' is a flag.
+			if len(arg) == 0 || arg[0] != '-' {
+				isRegexp = false
+			}
 			return
 		}
 

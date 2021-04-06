@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -11,7 +12,6 @@ import (
 	"fmt"
 	"internal/poll"
 	"io"
-	"io/ioutil"
 	"reflect"
 	"runtime"
 	"sync"
@@ -28,7 +28,7 @@ func TestBuffers_read(t *testing.T) {
 		[]byte("in "),
 		[]byte("Gopherland ... "),
 	}
-	got, err := ioutil.ReadAll(&buffers)
+	got, err := io.ReadAll(&buffers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 		}
 		return nil
 	}, func(c *TCPConn) error {
-		all, err := ioutil.ReadAll(c)
+		all, err := io.ReadAll(c)
 		if !bytes.Equal(all, want.Bytes()) || err != nil {
 			return fmt.Errorf("client read %q, %v; want %q, nil", all, err, want.Bytes())
 		}

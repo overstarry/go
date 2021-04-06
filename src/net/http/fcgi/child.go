@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/cgi"
@@ -172,12 +171,9 @@ func (c *child) serve() {
 	defer c.cleanUp()
 	var rec record
 	for {
-		c.conn.mutex.Lock()
 		if err := rec.read(c.conn.rwc); err != nil {
-			c.conn.mutex.Unlock()
 			return
 		}
-		c.conn.mutex.Unlock()
 		if err := c.handleRecord(&rec); err != nil {
 			return
 		}
@@ -186,7 +182,7 @@ func (c *child) serve() {
 
 var errCloseConn = errors.New("fcgi: connection should be closed")
 
-var emptyBody = ioutil.NopCloser(strings.NewReader(""))
+var emptyBody = io.NopCloser(strings.NewReader(""))
 
 // ErrRequestAborted is returned by Read when a handler attempts to read the
 // body of a request that has been aborted by the web server.
@@ -325,7 +321,7 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 	// some sort of abort request to the host, so the host
 	// can properly cut off the client sending all the data.
 	// For now just bound it a little and
-	io.CopyN(ioutil.Discard, body, 100<<20)
+	io.CopyN(io.Discard, body, 100<<20)
 	body.Close()
 
 	if !req.keepConn {

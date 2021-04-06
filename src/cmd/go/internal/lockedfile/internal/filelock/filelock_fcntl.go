@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || (solaris && !illumos)
 // +build aix solaris,!illumos
 
 // This code implements the filelock API using POSIX 'fcntl' locks, which attach
@@ -18,8 +19,8 @@ package filelock
 import (
 	"errors"
 	"io"
+	"io/fs"
 	"math/rand"
-	"os"
 	"sync"
 	"syscall"
 	"time"
@@ -61,7 +62,7 @@ func lock(f File, lt lockType) (err error) {
 	mu.Lock()
 	if i, dup := inodes[f]; dup && i != ino {
 		mu.Unlock()
-		return &os.PathError{
+		return &fs.PathError{
 			Op:   lt.String(),
 			Path: f.Name(),
 			Err:  errors.New("inode for file changed since last Lock or RLock"),
@@ -152,7 +153,7 @@ func lock(f File, lt lockType) (err error) {
 
 	if err != nil {
 		unlock(f)
-		return &os.PathError{
+		return &fs.PathError{
 			Op:   lt.String(),
 			Path: f.Name(),
 			Err:  err,

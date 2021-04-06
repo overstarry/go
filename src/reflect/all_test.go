@@ -1942,6 +1942,22 @@ func BenchmarkCall(b *testing.B) {
 	})
 }
 
+type myint int64
+
+func (i *myint) inc() {
+	*i = *i + 1
+}
+
+func BenchmarkCallMethod(b *testing.B) {
+	b.ReportAllocs()
+	z := new(myint)
+
+	v := ValueOf(z.inc)
+	for i := 0; i < b.N; i++ {
+		v.Call(nil)
+	}
+}
+
 func BenchmarkCallArgCopy(b *testing.B) {
 	byteArray := func(n int) Value {
 		return Zero(ArrayOf(n, TypeOf(byte(0))))
@@ -2405,8 +2421,14 @@ func TestVariadicMethodValue(t *testing.T) {
 	points := []Point{{20, 21}, {22, 23}, {24, 25}}
 	want := int64(p.TotalDist(points[0], points[1], points[2]))
 
+	// Variadic method of type.
+	tfunc := TypeOf((func(Point, ...Point) int)(nil))
+	if tt := TypeOf(p).Method(4).Type; tt != tfunc {
+		t.Errorf("Variadic Method Type from TypeOf is %s; want %s", tt, tfunc)
+	}
+
 	// Curried method of value.
-	tfunc := TypeOf((func(...Point) int)(nil))
+	tfunc = TypeOf((func(...Point) int)(nil))
 	v := ValueOf(p).Method(4)
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Variadic Method Type is %s; want %s", tt, tfunc)
@@ -2894,6 +2916,7 @@ func TestFieldPkgPath(t *testing.T) {
 		index    []int
 		pkgPath  string
 		embedded bool
+		exported bool
 	}
 
 	checkPkgPath := func(name string, s []pkgpathTest) {
@@ -2905,25 +2928,61 @@ func TestFieldPkgPath(t *testing.T) {
 			if got, want := f.Anonymous, test.embedded; got != want {
 				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
 			}
+			if got, want := f.IsExported(), test.exported; got != want {
+				t.Errorf("%s: Field(%d).IsExported = %v, want %v", name, test.index, got, want)
+			}
 		}
 	}
 
 	checkPkgPath("testStruct", []pkgpathTest{
-		{[]int{0}, "", false},             // Exported
-		{[]int{1}, "reflect_test", false}, // unexported
-		{[]int{2}, "", true},              // OtherPkgFields
-		{[]int{2, 0}, "", false},          // OtherExported
-		{[]int{2, 1}, "reflect", false},   // otherUnexported
-		{[]int{3}, "reflect_test", true},  // int
-		{[]int{4}, "reflect_test", true},  // *x
+		{[]int{0}, "", false, true},              // Exported
+		{[]int{1}, "reflect_test", false, false}, // unexported
+		{[]int{2}, "", true, true},               // OtherPkgFields
+		{[]int{2, 0}, "", false, true},           // OtherExported
+		{[]int{2, 1}, "reflect", false, false},   // otherUnexported
+		{[]int{3}, "reflect_test", true, false},  // int
+		{[]int{4}, "reflect_test", true, false},  // *x
 	})
 
 	type localOtherPkgFields OtherPkgFields
 	typ = TypeOf(localOtherPkgFields{})
 	checkPkgPath("localOtherPkgFields", []pkgpathTest{
-		{[]int{0}, "", false},        // OtherExported
-		{[]int{1}, "reflect", false}, // otherUnexported
+		{[]int{0}, "", false, true},         // OtherExported
+		{[]int{1}, "reflect", false, false}, // otherUnexported
 	})
+}
+
+func TestMethodPkgPath(t *testing.T) {
+	type I interface {
+		x()
+		X()
+	}
+	typ := TypeOf((*interface {
+		I
+		y()
+		Y()
+	})(nil)).Elem()
+
+	tests := []struct {
+		name     string
+		pkgPath  string
+		exported bool
+	}{
+		{"X", "", true},
+		{"Y", "", true},
+		{"x", "reflect_test", false},
+		{"y", "reflect_test", false},
+	}
+
+	for _, test := range tests {
+		m, _ := typ.MethodByName(test.name)
+		if got, want := m.PkgPath, test.pkgPath; got != want {
+			t.Errorf("MethodByName(%q).PkgPath = %q, want %q", test.name, got, want)
+		}
+		if got, want := m.IsExported(), test.exported; got != want {
+			t.Errorf("MethodByName(%q).IsExported = %v, want %v", test.name, got, want)
+		}
+	}
 }
 
 func TestVariadicType(t *testing.T) {
@@ -4001,9 +4060,12 @@ var convertTests = []struct {
 	{V(int16(-3)), V(string("\uFFFD"))},
 	{V(int32(-4)), V(string("\uFFFD"))},
 	{V(int64(-5)), V(string("\uFFFD"))},
+	{V(int64(-1 << 32)), V(string("\uFFFD"))},
+	{V(int64(1 << 32)), V(string("\uFFFD"))},
 	{V(uint(0x110001)), V(string("\uFFFD"))},
 	{V(uint32(0x110002)), V(string("\uFFFD"))},
 	{V(uint64(0x110003)), V(string("\uFFFD"))},
+	{V(uint64(1 << 32)), V(string("\uFFFD"))},
 	{V(uintptr(0x110004)), V(string("\uFFFD"))},
 
 	// named string
@@ -4259,24 +4321,6 @@ var gFloat32 float32
 
 func TestConvertNaNs(t *testing.T) {
 	const snan uint32 = 0x7f800001
-
-	// Test to see if a store followed by a load of a signaling NaN
-	// maintains the signaling bit. The only platform known to fail
-	// this test is 386,GO386=387. The real test below will always fail
-	// if the platform can't even store+load a float without mucking
-	// with the bits.
-	gFloat32 = math.Float32frombits(snan)
-	runtime.Gosched() // make sure we don't optimize the store/load away
-	r := math.Float32bits(gFloat32)
-	if r != snan {
-		// This should only happen on 386,GO386=387. We have no way to
-		// test for 387, so we just make sure we're at least on 386.
-		if runtime.GOARCH != "386" {
-			t.Errorf("store/load of sNaN not faithful")
-		}
-		t.Skip("skipping test, float store+load not faithful")
-	}
-
 	type myFloat32 float32
 	x := V(myFloat32(math.Float32frombits(snan)))
 	y := x.Convert(TypeOf(float32(0)))
@@ -4606,6 +4650,14 @@ func TestArrayOfDirectIface(t *testing.T) {
 			t.Errorf("got p2=%v. want=not-%v", p2, nil)
 		}
 	}
+}
+
+// Ensure passing in negative lengths panics.
+// See https://golang.org/issue/43603
+func TestArrayOfPanicOnNegativeLength(t *testing.T) {
+	shouldPanic("reflect: negative length passed to ArrayOf", func() {
+		ArrayOf(-1, TypeOf(byte(0)))
+	})
 }
 
 func TestSliceOf(t *testing.T) {

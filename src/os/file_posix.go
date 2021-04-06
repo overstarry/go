@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
 
 package os
@@ -81,7 +82,7 @@ func chmod(name string, mode FileMode) error {
 		return syscall.Chmod(longName, syscallMode(mode))
 	})
 	if e != nil {
-		return &PathError{"chmod", name, e}
+		return &PathError{Op: "chmod", Path: name, Err: e}
 	}
 	return nil
 }
@@ -109,7 +110,7 @@ func Chown(name string, uid, gid int) error {
 		return syscall.Chown(name, uid, gid)
 	})
 	if e != nil {
-		return &PathError{"chown", name, e}
+		return &PathError{Op: "chown", Path: name, Err: e}
 	}
 	return nil
 }
@@ -125,7 +126,7 @@ func Lchown(name string, uid, gid int) error {
 		return syscall.Lchown(name, uid, gid)
 	})
 	if e != nil {
-		return &PathError{"lchown", name, e}
+		return &PathError{Op: "lchown", Path: name, Err: e}
 	}
 	return nil
 }
@@ -182,7 +183,7 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	utimes[0] = syscall.NsecToTimespec(atime.UnixNano())
 	utimes[1] = syscall.NsecToTimespec(mtime.UnixNano())
 	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
-		return &PathError{"chtimes", name, e}
+		return &PathError{Op: "chtimes", Path: name, Err: e}
 	}
 	return nil
 }

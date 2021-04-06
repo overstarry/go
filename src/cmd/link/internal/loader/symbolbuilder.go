@@ -121,13 +121,11 @@ func (sb *SymbolBuilder) Relocs() Relocs {
 // ResetRelocs removes all relocations on this symbol.
 func (sb *SymbolBuilder) ResetRelocs() {
 	sb.relocs = sb.relocs[:0]
-	sb.reltypes = sb.reltypes[:0]
 }
 
 // SetRelocType sets the type of the 'i'-th relocation on this sym to 't'
 func (sb *SymbolBuilder) SetRelocType(i int, t objabi.RelocType) {
-	sb.relocs[i].SetType(0)
-	sb.reltypes[i] = t
+	sb.relocs[i].SetType(uint16(t))
 }
 
 // SetRelocSym sets the target sym of the 'i'-th relocation on this sym to 's'
@@ -143,7 +141,6 @@ func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
 // Add n relocations, return a handle to the relocations.
 func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
 	sb.relocs = append(sb.relocs, make([]goobj.Reloc, n)...)
-	sb.reltypes = append(sb.reltypes, make([]objabi.RelocType, n)...)
 	return sb.l.Relocs(sb.symIdx)
 }
 
@@ -152,7 +149,7 @@ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
 func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc, int) {
 	j := len(sb.relocs)
 	sb.relocs = append(sb.relocs, goobj.Reloc{})
-	sb.reltypes = append(sb.reltypes, typ)
+	sb.relocs[j].SetType(uint16(typ))
 	relocs := sb.Relocs()
 	return relocs.At(j), j
 }
@@ -169,7 +166,6 @@ func (p *relocsByOff) Len() int           { return len(p.relocs) }
 func (p *relocsByOff) Less(i, j int) bool { return p.relocs[i].Off() < p.relocs[j].Off() }
 func (p *relocsByOff) Swap(i, j int) {
 	p.relocs[i], p.relocs[j] = p.relocs[j], p.relocs[i]
-	p.reltypes[i], p.reltypes[j] = p.reltypes[j], p.reltypes[i]
 }
 
 func (sb *SymbolBuilder) Reachable() bool {
@@ -336,6 +332,15 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
 	return r
 }
 
+func (sb *SymbolBuilder) SetBytesAt(off int64, b []byte) int64 {
+	datLen := int64(len(b))
+	if off+datLen > int64(len(sb.data)) {
+		panic("attempt to write past end of buffer")
+	}
+	copy(sb.data[off:off+datLen], b)
+	return off + datLen
+}
+
 func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
 	if sb.kind == 0 {
 		sb.kind = sym.SDATA
@@ -409,5 +414,23 @@ func (sb *SymbolBuilder) MakeWritable() {
 	if sb.ReadOnly() {
 		sb.data = append([]byte(nil), sb.data...)
 		sb.l.SetAttrReadOnly(sb.symIdx, false)
+	}
+}
+
+func (sb *SymbolBuilder) AddUleb(v uint64) {
+	if v < 128 { // common case: 1 byte
+		sb.AddUint8(uint8(v))
+		return
+	}
+	for {
+		c := uint8(v & 0x7f)
+		v >>= 7
+		if v != 0 {
+			c |= 0x80
+		}
+		sb.AddUint8(c)
+		if c&0x80 == 0 {
+			break
+		}
 	}
 }

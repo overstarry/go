@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd
 // +build aix darwin dragonfly freebsd linux netbsd openbsd
 
 // TODO: test on Windows?
@@ -20,8 +21,8 @@ func TestPanicOnFault(t *testing.T) {
 	if runtime.GOARCH == "s390x" {
 		t.Skip("s390x fault addresses are missing the low order bits")
 	}
-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
-		t.Skip("darwin/arm64 doesn't provide fault addresses")
+	if runtime.GOOS == "ios" {
+		t.Skip("iOS doesn't provide fault addresses")
 	}
 	m, err := syscall.Mmap(-1, 0, 0x1000, syscall.PROT_READ /* Note: no PROT_WRITE */, syscall.MAP_SHARED|syscall.MAP_ANON)
 	if err != nil {
