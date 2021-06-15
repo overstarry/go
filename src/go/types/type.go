@@ -7,6 +7,7 @@ package types
 import (
 	"fmt"
 	"go/token"
+	"sync/atomic"
 )
 
 // A Type represents a type of Go.
@@ -643,7 +644,7 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named (defined) type.
 type Named struct {
-	check      *Checker    // for Named.under implementation
+	check      *Checker    // for Named.under implementation; nilled once under has been called
 	info       typeInfo    // for cycle detection
 	obj        *TypeName   // corresponding declared object
 	orig       Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
@@ -660,17 +661,30 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj: obj, orig: underlying, underlying: underlying, methods: methods}
-	if obj.typ == nil {
-		obj.typ = typ
-	}
-	return typ
+	return (*Checker)(nil).newNamed(obj, underlying, methods)
 }
 
 func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, orig: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
+	}
+	// Ensure that typ is always expanded, at which point the check field can be
+	// nilled out.
+	//
+	// Note that currently we cannot nil out check inside typ.under(), because
+	// it's possible that typ is expanded multiple times.
+	//
+	// TODO(rFindley): clean this up so that under is the only function mutating
+	//                 named types.
+	if check != nil {
+		check.later(func() {
+			switch typ.under().(type) {
+			case *Named, *instance:
+				panic("internal error: unexpanded underlying type")
+			}
+			typ.check = nil
+		})
 	}
 	return typ
 }
@@ -715,6 +729,15 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
+// Note: This is a uint32 rather than a uint64 because the
+// respective 64 bit atomic instructions are not available
+// on all platforms.
+var lastId uint32
+
+// nextId returns a value increasing monotonically by 1 with
+// each call, starting with 1. It may be called concurrently.
+func nextId() uint64 { return uint64(atomic.AddUint32(&lastId, 1)) }
+
 // A _TypeParam represents a type parameter type.
 type _TypeParam struct {
 	check *Checker  // for lazy type bound completion
@@ -727,8 +750,7 @@ type _TypeParam struct {
 // newTypeParam returns a new TypeParam.
 func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *_TypeParam {
 	assert(bound != nil)
-	typ := &_TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
-	check.nextId++
+	typ := &_TypeParam{check: check, id: nextId(), obj: obj, index: index, bound: bound}
 	if obj.typ == nil {
 		obj.typ = typ
 	}

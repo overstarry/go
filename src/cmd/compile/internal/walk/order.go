@@ -6,6 +6,8 @@ package walk
 
 import (
 	"fmt"
+	"go/constant"
+	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
@@ -14,7 +16,6 @@ import (
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -269,10 +270,52 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 	// Most map calls need to take the address of the key.
 	// Exception: map*_fast* calls. See golang.org/issue/19015.
-	if mapfast(t) == mapslow {
+	alg := mapfast(t)
+	if alg == mapslow {
 		return o.addrTemp(n)
 	}
-	return n
+	var kt *types.Type
+	switch alg {
+	case mapfast32:
+		kt = types.Types[types.TUINT32]
+	case mapfast64:
+		kt = types.Types[types.TUINT64]
+	case mapfast32ptr, mapfast64ptr:
+		kt = types.Types[types.TUNSAFEPTR]
+	case mapfaststr:
+		kt = types.Types[types.TSTRING]
+	}
+	nt := n.Type()
+	switch {
+	case nt == kt:
+		return n
+	case nt.Kind() == kt.Kind(), nt.IsPtrShaped() && kt.IsPtrShaped():
+		// can directly convert (e.g. named type to underlying type, or one pointer to another)
+		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, kt, n))
+	case nt.IsInteger() && kt.IsInteger():
+		// can directly convert (e.g. int32 to uint32)
+		if n.Op() == ir.OLITERAL && nt.IsSigned() {
+			// avoid constant overflow error
+			n = ir.NewConstExpr(constant.MakeUint64(uint64(ir.Int64Val(n))), n)
+			n.SetType(kt)
+			return n
+		}
+		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONV, kt, n))
+	default:
+		// Unsafe cast through memory.
+		// We'll need to do a load with type kt. Create a temporary of type kt to
+		// ensure sufficient alignment. nt may be under-aligned.
+		if kt.Align < nt.Align {
+			base.Fatalf("mapKeyTemp: key type is not sufficiently aligned, kt=%v nt=%v", kt, nt)
+		}
+		tmp := o.newTemp(kt, true)
+		// *(*nt)(&tmp) = n
+		var e ir.Node = typecheck.NodAddr(tmp)
+		e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, nt.PtrTo(), e)
+		e = ir.NewStarExpr(n.Pos(), e)
+		o.append(ir.NewAssignStmt(base.Pos, e, n))
+		return tmp
+	}
 }
 
 // mapKeyReplaceStrConv replaces OBYTES2STR by OBYTES2STRTMP
@@ -501,6 +544,14 @@ func (o *orderState) call(nn ir.Node) {
 
 	n := nn.(*ir.CallExpr)
 	typecheck.FixVariadicCall(n)
+
+	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
+		// do not introduce temporaries here, so it is easier to rewrite it
+		// to symbol address reference later in walk.
+		return
+	}
+
 	n.X = o.expr(n.X, nil)
 	o.exprList(n.Args)
 
@@ -739,7 +790,7 @@ func (o *orderState) stmt(n ir.Node) {
 			n.Call = walkRecover(n.Call.(*ir.CallExpr), &init)
 			o.stmtList(init)
 		}
-		if objabi.Experiment.RegabiDefer {
+		if buildcfg.Experiment.RegabiDefer {
 			o.wrapGoDefer(n)
 		}
 		o.out = append(o.out, n)
@@ -1147,7 +1198,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		if n.X.Type().IsInterface() {
 			return n
 		}
-		if _, needsaddr := convFuncName(n.X.Type(), n.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
+		if _, _, needsaddr := convFuncName(n.X.Type(), n.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
 			// Need a temp if we need to pass the address to the conversion function.
 			// We also process static composite literal node here, making a named static global
 			// whose address we can put directly in an interface (see OCONVIFACE case in walk).
@@ -1539,22 +1590,34 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	// (needs heap allocation).
 	cloEscapes := func() bool {
 		if n.Op() == ir.OGO {
-			// For "go", assume that all closures escape (with an
-			// exception for the runtime, which doesn't permit
-			// heap-allocated closures).
-			return base.Ctxt.Pkgpath != "runtime"
+			// For "go", assume that all closures escape.
+			return true
 		}
 		// For defer, just use whatever result escape analysis
 		// has determined for the defer.
 		return n.Esc() != ir.EscNever
 	}()
 
-	// A helper for making a copy of an argument.
+	// A helper for making a copy of an argument. Note that it is
+	// not safe to use o.copyExpr(arg) if we're putting a
+	// reference to the temp into the closure (as opposed to
+	// copying it in by value), since in the by-reference case we
+	// need a temporary whose lifetime extends to the end of the
+	// function (as opposed to being local to the current block or
+	// statement being ordered).
 	mkArgCopy := func(arg ir.Node) *ir.Name {
-		argCopy := o.copyExpr(arg)
+		t := arg.Type()
+		byval := t.Size() <= 128 || cloEscapes
+		var argCopy *ir.Name
+		if byval {
+			argCopy = o.copyExpr(arg)
+		} else {
+			argCopy = typecheck.Temp(t)
+			o.append(ir.NewAssignStmt(base.Pos, argCopy, arg))
+		}
 		// The value of 128 below is meant to be consistent with code
 		// in escape analysis that picks byval/byaddr based on size.
-		argCopy.SetByval(argCopy.Type().Size() <= 128 || cloEscapes)
+		argCopy.SetByval(byval)
 		return argCopy
 	}
 
@@ -1740,4 +1803,19 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 
 	// Finally, point the defer statement at the newly generated call.
 	n.Call = topcall
+}
+
+// isFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
+func isFuncPCIntrinsic(n *ir.CallExpr) bool {
+	if n.Op() != ir.OCALLFUNC || n.X.Op() != ir.ONAME {
+		return false
+	}
+	fn := n.X.(*ir.Name).Sym()
+	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
+		(fn.Pkg.Path == "internal/abi" || fn.Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "internal/abi")
+}
+
+// isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
+func isIfaceOfFunc(n ir.Node) bool {
+	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
 }

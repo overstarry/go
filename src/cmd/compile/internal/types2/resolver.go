@@ -179,7 +179,11 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
-		check.pkgCnt[imp.name]++
+		// Once we've formatted an error message once, keep the pkgPathMap
+		// up-to-date on subsequent imports.
+		if check.pkgPathMap != nil {
+			check.markImports(imp)
+		}
 		return imp
 	}
 
@@ -216,7 +220,7 @@ func (check *Checker) collectObjects() {
 		// but there is no corresponding package object.
 		check.recordDef(file.PkgName, nil)
 
-		fileScope := NewScope(check.pkg.scope, startPos(file), endPos(file), check.filename(fileNo))
+		fileScope := NewScope(check.pkg.scope, syntax.StartPos(file), syntax.EndPos(file), check.filename(fileNo))
 		fileScopes = append(fileScopes, fileScope)
 		check.recordScope(file, fileScope)
 
@@ -426,7 +430,7 @@ func (check *Checker) collectObjects() {
 				} else {
 					// method
 					// d.Recv != nil
-					if !methodTypeParamsOk && len(d.TParamList) != 0 {
+					if !acceptMethodTypeParams && len(d.TParamList) != 0 {
 						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
 						check.error(d, invalidAST+"method must have no type parameters")
 					}

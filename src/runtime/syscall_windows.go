@@ -64,6 +64,7 @@ type abiDesc struct {
 
 	srcStackSize uintptr // stdcall/fastcall stack space tracking
 	dstStackSize uintptr // Go stack space used
+	dstSpill     uintptr // Extra stack space for argument spill slots
 	dstRegisters int     // Go ABI int argument registers used
 
 	// retOffset is the offset of the uintptr-sized result in the Go
@@ -110,7 +111,14 @@ func (p *abiDesc) assignArg(t *_type) {
 	// arguments. The same is true on arm.
 
 	oldParts := p.parts
-	if !p.tryRegAssignArg(t, 0) {
+	if p.tryRegAssignArg(t, 0) {
+		// Account for spill space.
+		//
+		// TODO(mknyszek): Remove this when we no longer have
+		// caller reserved spill space.
+		p.dstSpill = alignUp(p.dstSpill, uintptr(t.align))
+		p.dstSpill += t.size
+	} else {
 		// Register assignment failed.
 		// Undo the work and stack assign.
 		p.parts = oldParts
@@ -277,7 +285,11 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		abiMap.dstStackSize += sys.PtrSize
 	}
 
-	if abiMap.dstStackSize > callbackMaxFrame {
+	// TODO(mknyszek): Remove dstSpill from this calculation when we no longer have
+	// caller reserved spill space.
+	frameSize := alignUp(abiMap.dstStackSize, sys.PtrSize)
+	frameSize += abiMap.dstSpill
+	if frameSize > callbackMaxFrame {
 		panic("compileCallback: function argument frame too large")
 	}
 
@@ -356,9 +368,14 @@ func callbackWrap(a *callbackArgs) {
 		}
 	}
 
+	// TODO(mknyszek): Remove this when we no longer have
+	// caller reserved spill space.
+	frameSize := alignUp(c.abiMap.dstStackSize, sys.PtrSize)
+	frameSize += c.abiMap.dstSpill
+
 	// Even though this is copying back results, we can pass a nil
 	// type because those results must not require write barriers.
-	reflectcall(nil, unsafe.Pointer(c.fn), noescape(goArgs), uint32(c.abiMap.dstStackSize), uint32(c.abiMap.retOffset), uint32(c.abiMap.dstStackSize), &regs)
+	reflectcall(nil, unsafe.Pointer(c.fn), noescape(goArgs), uint32(c.abiMap.dstStackSize), uint32(c.abiMap.retOffset), uint32(frameSize), &regs)
 
 	// Extract the result.
 	//
@@ -482,12 +499,12 @@ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
 //go:cgo_unsafe_args
 func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
 	lockOSThread()
-	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	unlockOSThread()
 	return c.r1, c.r2, c.err
 }
 
@@ -496,12 +513,12 @@ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1
 //go:cgo_unsafe_args
 func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
 	lockOSThread()
-	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	unlockOSThread()
 	return c.r1, c.r2, c.err
 }
 
@@ -510,12 +527,12 @@ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 //go:cgo_unsafe_args
 func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
 	lockOSThread()
-	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	unlockOSThread()
 	return c.r1, c.r2, c.err
 }
 
@@ -524,11 +541,11 @@ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 //go:cgo_unsafe_args
 func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
 	lockOSThread()
-	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
 	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	unlockOSThread()
 	return c.r1, c.r2, c.err
 }

@@ -368,10 +368,8 @@ const (
 	C_LCON   /* other 32 */
 	C_DCON   /* other 64 (could subdivide further) */
 	C_SACON  /* $n(REG) where n <= int16 */
-	C_SECON
-	C_LACON /* $n(REG) where int16 < n <= int32 */
-	C_LECON
-	C_DACON /* $n(REG) where int32 < n */
+	C_LACON  /* $n(REG) where int16 < n <= int32 */
+	C_DACON  /* $n(REG) where int32 < n */
 	C_SBRA
 	C_LBRA
 	C_LBRAPIC
@@ -379,15 +377,12 @@ const (
 	C_SOREG // D/DS form memory operation
 	C_LOREG // 32 bit addis + D/DS-form memory operation
 	C_FPSCR
-	C_MSR
 	C_XER
 	C_LR
 	C_CTR
 	C_ANY
 	C_GOK
 	C_ADDR
-	C_GOTADDR
-	C_TOCADDR
 	C_TLS_LE
 	C_TLS_IE
 	C_TEXTSIZE

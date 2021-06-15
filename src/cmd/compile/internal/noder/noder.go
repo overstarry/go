@@ -46,8 +46,8 @@ func LoadPackage(filenames []string) {
 		noders[i] = &p
 
 		filename := filename
-		sem <- struct{}{}
 		go func() {
+			sem <- struct{}{}
 			defer func() { <-sem }()
 			defer close(p.err)
 			fbase := syntax.NewFileBase(filename)
@@ -881,9 +881,6 @@ func (p *noder) typeExpr(typ syntax.Expr) ir.Ntype {
 	n := p.expr(typ)
 	if n == nil {
 		return nil
-	}
-	if _, ok := n.(ir.Ntype); !ok {
-		ir.Dump("NOT NTYPE", n)
 	}
 	return n.(ir.Ntype)
 }

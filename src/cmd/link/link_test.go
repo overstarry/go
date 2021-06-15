@@ -177,7 +177,8 @@ func TestIssue33979(t *testing.T) {
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
-	if runtime.GOOS == "aix" {
+	if runtime.GOOS == "aix" ||
+		runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
@@ -333,12 +334,12 @@ func TestXFlag(t *testing.T) {
 	}
 }
 
-var testMacOSVersionSrc = `
+var testMachOBuildVersionSrc = `
 package main
 func main() { }
 `
 
-func TestMacOSVersion(t *testing.T) {
+func TestMachOBuildVersion(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	t.Parallel()
@@ -346,7 +347,7 @@ func TestMacOSVersion(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
+	err := ioutil.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,28 +372,28 @@ func TestMacOSVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	found := false
-	const LC_VERSION_MIN_MACOSX = 0x24
+	const LC_BUILD_VERSION = 0x32
 	checkMin := func(ver uint32) {
 		major, minor := (ver>>16)&0xff, (ver>>8)&0xff
 		if major != 10 || minor < 9 {
-			t.Errorf("LC_VERSION_MIN_MACOSX version %d.%d < 10.9", major, minor)
+			t.Errorf("LC_BUILD_VERSION version %d.%d < 10.9", major, minor)
 		}
 	}
 	for _, cmd := range exem.Loads {
 		raw := cmd.Raw()
 		type_ := exem.ByteOrder.Uint32(raw)
-		if type_ != LC_VERSION_MIN_MACOSX {
+		if type_ != LC_BUILD_VERSION {
 			continue
 		}
-		osVer := exem.ByteOrder.Uint32(raw[8:])
+		osVer := exem.ByteOrder.Uint32(raw[12:])
 		checkMin(osVer)
-		sdkVer := exem.ByteOrder.Uint32(raw[12:])
+		sdkVer := exem.ByteOrder.Uint32(raw[16:])
 		checkMin(sdkVer)
 		found = true
 		break
 	}
 	if !found {
-		t.Errorf("no LC_VERSION_MIN_MACOSX load command found")
+		t.Errorf("no LC_BUILD_VERSION load command found")
 	}
 }
 
@@ -469,9 +470,29 @@ TEXT	·f(SB), NOSPLIT|DUPOK, $0-0
 	JMP	0(PC)
 `
 
+const testStrictDupAsmSrc3 = `
+#include "textflag.h"
+GLOBL ·rcon(SB), RODATA|DUPOK, $64
+`
+
+const testStrictDupAsmSrc4 = `
+#include "textflag.h"
+GLOBL ·rcon(SB), RODATA|DUPOK, $32
+`
+
 func TestStrictDup(t *testing.T) {
 	// Check that -strictdups flag works.
 	testenv.MustHaveGoBuild(t)
+
+	asmfiles := []struct {
+		fname   string
+		payload string
+	}{
+		{"a", testStrictDupAsmSrc1},
+		{"b", testStrictDupAsmSrc2},
+		{"c", testStrictDupAsmSrc3},
+		{"d", testStrictDupAsmSrc4},
+	}
 
 	t.Parallel()
 
@@ -482,15 +503,12 @@ func TestStrictDup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src = filepath.Join(tmpdir, "a.s")
-	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc1), 0666)
-	if err != nil {
-		t.Fatal(err)
-	}
-	src = filepath.Join(tmpdir, "b.s")
-	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc2), 0666)
-	if err != nil {
-		t.Fatal(err)
+	for _, af := range asmfiles {
+		src = filepath.Join(tmpdir, af.fname+".s")
+		err = ioutil.WriteFile(src, []byte(af.payload), 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	src = filepath.Join(tmpdir, "go.mod")
 	err = ioutil.WriteFile(src, []byte("module teststrictdup\n"), 0666)
@@ -502,7 +520,7 @@ func TestStrictDup(t *testing.T) {
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Errorf("linking with -strictdups=1 failed: %v", err)
+		t.Errorf("linking with -strictdups=1 failed: %v\n%s", err, string(out))
 	}
 	if !bytes.Contains(out, []byte("mismatched payload")) {
 		t.Errorf("unexpected output:\n%s", out)
@@ -514,7 +532,11 @@ func TestStrictDup(t *testing.T) {
 	if err == nil {
 		t.Errorf("linking with -strictdups=2 did not fail")
 	}
-	if !bytes.Contains(out, []byte("mismatched payload")) {
+	// NB: on amd64 we get the 'new length' error, on arm64 the 'different
+	// contents' error.
+	if !(bytes.Contains(out, []byte("mismatched payload: new length")) ||
+		bytes.Contains(out, []byte("mismatched payload: same length but different contents"))) ||
+		!bytes.Contains(out, []byte("mismatched payload: different sizes")) {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 }
@@ -617,7 +639,7 @@ func TestTrampoline(t *testing.T) {
 	// threshold for trampoline generation, and essentially all cross-package
 	// calls will use trampolines.
 	switch runtime.GOARCH {
-	case "arm", "ppc64", "ppc64le":
+	case "arm", "arm64", "ppc64", "ppc64le":
 	default:
 		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
 	}
@@ -646,6 +668,77 @@ func TestTrampoline(t *testing.T) {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
 	if string(out) != "hello\n" {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+}
+
+const testTrampCgoSrc = `
+package main
+
+// #include <stdio.h>
+// void CHello() { printf("hello\n"); fflush(stdout); }
+import "C"
+
+func main() {
+	C.CHello()
+}
+`
+
+func TestTrampolineCgo(t *testing.T) {
+	// Test that trampoline insertion works for cgo code.
+	// For stress test, we set -debugtramp=2 flag, which sets a very low
+	// threshold for trampoline generation, and essentially all cross-package
+	// calls will use trampolines.
+	switch runtime.GOARCH {
+	case "arm", "arm64", "ppc64", "ppc64le":
+	default:
+		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	src := filepath.Join(tmpdir, "hello.go")
+	err := ioutil.WriteFile(src, []byte(testTrampCgoSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "hello.exe")
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "hello\n" && string(out) != "hello\r\n" {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+
+	// Test internal linking mode.
+
+	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || (runtime.GOARCH == "arm64" && runtime.GOOS == "windows") || !testenv.CanInternalLink() {
+		return // internal linking cgo is not supported
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2 -linkmode=internal", "-o", exe, src)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "hello\n" && string(out) != "hello\r\n" {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 }

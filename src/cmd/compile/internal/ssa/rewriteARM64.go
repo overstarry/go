@@ -984,6 +984,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpSelect0(v)
 	case OpSelect1:
 		return rewriteValueARM64_OpSelect1(v)
+	case OpSelectN:
+		return rewriteValueARM64_OpSelectN(v)
 	case OpSignExt16to32:
 		v.Op = OpARM64MOVHreg
 		return true
@@ -3619,6 +3621,32 @@ func rewriteValueARM64_OpARM64CSETM(v *Value) bool {
 		v.AddArg(cmp)
 		return true
 	}
+	// match: (CSETM [cc] flag)
+	// cond: ccARM64Eval(cc, flag) > 0
+	// result: (MOVDconst [-1])
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		flag := v_0
+		if !(ccARM64Eval(cc, flag) > 0) {
+			break
+		}
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64ToAuxInt(-1)
+		return true
+	}
+	// match: (CSETM [cc] flag)
+	// cond: ccARM64Eval(cc, flag) < 0
+	// result: (MOVDconst [0])
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		flag := v_0
+		if !(ccARM64Eval(cc, flag) < 0) {
+			break
+		}
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64CSINC(v *Value) bool {
@@ -3638,6 +3666,34 @@ func rewriteValueARM64_OpARM64CSINC(v *Value) bool {
 		v.reset(OpARM64CSINC)
 		v.AuxInt = opToAuxInt(arm64Invert(cc))
 		v.AddArg3(x, y, cmp)
+		return true
+	}
+	// match: (CSINC [cc] x _ flag)
+	// cond: ccARM64Eval(cc, flag) > 0
+	// result: x
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		x := v_0
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) > 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (CSINC [cc] _ y flag)
+	// cond: ccARM64Eval(cc, flag) < 0
+	// result: (ADDconst [1] y)
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		y := v_1
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) < 0) {
+			break
+		}
+		v.reset(OpARM64ADDconst)
+		v.AuxInt = int64ToAuxInt(1)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -3661,6 +3717,33 @@ func rewriteValueARM64_OpARM64CSINV(v *Value) bool {
 		v.AddArg3(x, y, cmp)
 		return true
 	}
+	// match: (CSINV [cc] x _ flag)
+	// cond: ccARM64Eval(cc, flag) > 0
+	// result: x
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		x := v_0
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) > 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (CSINV [cc] _ y flag)
+	// cond: ccARM64Eval(cc, flag) < 0
+	// result: (Not y)
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		y := v_1
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) < 0) {
+			break
+		}
+		v.reset(OpNot)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64CSNEG(v *Value) bool {
@@ -3680,6 +3763,33 @@ func rewriteValueARM64_OpARM64CSNEG(v *Value) bool {
 		v.reset(OpARM64CSNEG)
 		v.AuxInt = opToAuxInt(arm64Invert(cc))
 		v.AddArg3(x, y, cmp)
+		return true
+	}
+	// match: (CSNEG [cc] x _ flag)
+	// cond: ccARM64Eval(cc, flag) > 0
+	// result: x
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		x := v_0
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) > 0) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (CSNEG [cc] _ y flag)
+	// cond: ccARM64Eval(cc, flag) < 0
+	// result: (NEG y)
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		y := v_1
+		flag := v_2
+		if !(ccARM64Eval(cc, flag) < 0) {
+			break
+		}
+		v.reset(OpARM64NEG)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -25871,6 +25981,54 @@ func rewriteValueARM64_OpSelect1(v *Value) bool {
 		v1.AddArg(v2)
 		v0.AddArg(v1)
 		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpSelectN(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore _ src s3:(MOVDstore {t} _ dst mem)))))
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)
+	// result: (Move [sz] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpARM64CALLstatic {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		s1 := call.Args[0]
+		if s1.Op != OpARM64MOVDstore {
+			break
+		}
+		_ = s1.Args[2]
+		s1_1 := s1.Args[1]
+		if s1_1.Op != OpARM64MOVDconst {
+			break
+		}
+		sz := auxIntToInt64(s1_1.AuxInt)
+		s2 := s1.Args[2]
+		if s2.Op != OpARM64MOVDstore {
+			break
+		}
+		_ = s2.Args[2]
+		src := s2.Args[1]
+		s3 := s2.Args[2]
+		if s3.Op != OpARM64MOVDstore {
+			break
+		}
+		mem := s3.Args[2]
+		dst := s3.Args[1]
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(sz)
+		v.AddArg3(dst, src, mem)
 		return true
 	}
 	return false

@@ -65,10 +65,8 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error)
 		t.Fatalf("%s: unable to parse: %s", path, err)
 	}
 	conf := Config{
-		AcceptMethodTypeParams: true,
-		InferFromConstraints:   true,
-		Error:                  func(err error) {},
-		Importer:               defaultImporter(),
+		Error:    func(err error) {},
+		Importer: defaultImporter(),
 	}
 	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
 	return pkg.Name(), err
@@ -328,7 +326,7 @@ func TestTypesInfo(t *testing.T) {
 		{brokenPkg + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
 		{brokenPkg + `x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
-		{brokenPkg + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
+		{brokenPkg + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
 
 		// parameterized functions
 		{genericPkg + `p0; func f[T any](T); var _ = f[int]`, `f`, `func[T₁ interface{}](T₁)`},
@@ -351,6 +349,7 @@ func TestTypesInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		ResetId() // avoid renumbering of type parameter ids when adding tests
 		info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
 		var name string
 		if strings.HasPrefix(test.src, brokenPkg) {
@@ -556,6 +555,7 @@ func TestDefsInfo(t *testing.T) {
 		{`package p2; var x int`, `x`, `var p2.x int`},
 		{`package p3; type x int`, `x`, `type p3.x int`},
 		{`package p4; func f()`, `f`, `func p4.f()`},
+		{`package p5; func f() int { x, _ := 1, 2; return x }`, `_`, `var _ int`},
 
 		// generic types must be sanitized
 		// (need to use sufficiently nested types to provoke unexpanded types)
@@ -1579,6 +1579,9 @@ func TestConvertibleTo(t *testing.T) {
 		{newDefined(new(Struct)), new(Struct), true},
 		{newDefined(Typ[Int]), new(Struct), false},
 		{Typ[UntypedInt], Typ[Int], true},
+		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Int], 10)), true},
+		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), false},
+		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Uint], 10)), false},
 		// Untyped string values are not permitted by the spec, so the below
 		// behavior is undefined.
 		{Typ[UntypedString], Typ[String], true},

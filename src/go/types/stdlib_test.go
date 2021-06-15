@@ -134,7 +134,8 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// parse and type-check file
 		file, err := parser.ParseFile(fset, filename, nil, 0)
 		if err == nil {
-			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
+			conf := Config{Importer: stdLibImporter}
+			SetGoVersion(&conf, goVersion)
 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
 		}
 
@@ -200,6 +201,9 @@ func TestStdKen(t *testing.T) {
 // Package paths of excluded packages.
 var excluded = map[string]bool{
 	"builtin": true,
+
+	// See #46027: some imports are missing for this submodule.
+	"crypto/ed25519/internal/edwards25519/field/_asm": true,
 }
 
 // typecheck typechecks the given package files.

@@ -117,10 +117,10 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"internal/buildcfg"
 	"math/bits"
 	"unsafe"
 )
@@ -609,7 +609,7 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.hasGReg {
 		s.allocatable &^= 1 << s.GReg
 	}
-	if objabi.FramePointerEnabled && s.f.Config.FPReg >= 0 {
+	if buildcfg.FramePointerEnabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
 	if s.f.Config.LinkReg != -1 {
@@ -1377,12 +1377,58 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 
-			// Move arguments to registers. Process in an ordering defined
-			// by the register specification (most constrained first).
-			args = append(args[:0], v.Args...)
+			// Move arguments to registers.
+			// First, if an arg must be in a specific register and it is already
+			// in place, keep it.
+			args = append(args[:0], make([]*Value, len(v.Args))...)
+			for i, a := range v.Args {
+				if !s.values[a.ID].needReg {
+					args[i] = a
+				}
+			}
 			for _, i := range regspec.inputs {
 				mask := i.regs
-				if mask&s.values[args[i.idx].ID].regs == 0 {
+				if countRegs(mask) == 1 && mask&s.values[v.Args[i.idx].ID].regs != 0 {
+					args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
+				}
+			}
+			// Then, if an arg must be in a specific register and that
+			// register is free, allocate that one. Otherwise when processing
+			// another input we may kick a value into the free register, which
+			// then will be kicked out again.
+			// This is a common case for passing-in-register arguments for
+			// function calls.
+			for {
+				freed := false
+				for _, i := range regspec.inputs {
+					if args[i.idx] != nil {
+						continue // already allocated
+					}
+					mask := i.regs
+					if countRegs(mask) == 1 && mask&^s.used != 0 {
+						args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
+						// If the input is in other registers that will be clobbered by v,
+						// or the input is dead, free the registers. This may make room
+						// for other inputs.
+						oldregs := s.values[v.Args[i.idx].ID].regs
+						if oldregs&^regspec.clobbers == 0 || !s.liveAfterCurrentInstruction(v.Args[i.idx]) {
+							s.freeRegs(oldregs &^ mask &^ s.nospill)
+							freed = true
+						}
+					}
+				}
+				if !freed {
+					break
+				}
+			}
+			// Last, allocate remaining ones, in an ordering defined
+			// by the register specification (most constrained first).
+			for _, i := range regspec.inputs {
+				if args[i.idx] != nil {
+					continue // already allocated
+				}
+				mask := i.regs
+				if mask&s.values[v.Args[i.idx].ID].regs == 0 {
 					// Need a new register for the input.
 					mask &= s.allocatable
 					mask &^= s.nospill
@@ -1401,7 +1447,7 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 				}
-				args[i.idx] = s.allocValToReg(args[i.idx], mask, true, v.Pos)
+				args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
 			}
 
 			// If the output clobbers the input register, make sure we have
@@ -1447,9 +1493,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					goto ok
 				}
 
-				// Try to move an input to the desired output.
+				// Try to move an input to the desired output, if allowed.
 				for _, r := range dinfo[idx].out {
-					if r != noRegister && m>>r&1 != 0 {
+					if r != noRegister && (m&regspec.outputs[0].regs)>>r&1 != 0 {
 						m = regMask(1) << r
 						args[0] = s.allocValToReg(v.Args[0], m, true, v.Pos)
 						// Note: we update args[0] so the instruction will
@@ -1523,6 +1569,9 @@ func (s *regAllocState) regalloc(f *Func) {
 						if !opcodeTable[v.Op].commutative {
 							// Output must use the same register as input 0.
 							r := register(s.f.getHome(args[0].ID).(*Register).num)
+							if mask>>r&1 == 0 {
+								s.f.Fatalf("resultInArg0 value's input %v cannot be an output of %s", s.f.getHome(args[0].ID).(*Register), v.LongString())
+							}
 							mask = regMask(1) << r
 						} else {
 							// Output must use the same register as input 0 or 1.
@@ -1833,6 +1882,10 @@ func (s *regAllocState) placeSpills() {
 		phiRegs[b.ID] = m
 	}
 
+	mustBeFirst := func(op Op) bool {
+		return op.isLoweredGetClosurePtr() || op == OpPhi || op == OpArgIntReg || op == OpArgFloatReg
+	}
+
 	// Start maps block IDs to the list of spills
 	// that go at the start of the block (but after any phis).
 	start := map[ID][]*Value{}
@@ -1922,7 +1975,7 @@ func (s *regAllocState) placeSpills() {
 		// Put the spill in the best block we found.
 		spill.Block = best
 		spill.AddArg(bestArg)
-		if best == v.Block && v.Op != OpPhi {
+		if best == v.Block && !mustBeFirst(v.Op) {
 			// Place immediately after v.
 			after[v.ID] = append(after[v.ID], spill)
 		} else {
@@ -1934,15 +1987,15 @@ func (s *regAllocState) placeSpills() {
 	// Insert spill instructions into the block schedules.
 	var oldSched []*Value
 	for _, b := range s.visitOrder {
-		nphi := 0
+		nfirst := 0
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if !mustBeFirst(v.Op) {
 				break
 			}
-			nphi++
+			nfirst++
 		}
-		oldSched = append(oldSched[:0], b.Values[nphi:]...)
-		b.Values = b.Values[:nphi]
+		oldSched = append(oldSched[:0], b.Values[nfirst:]...)
+		b.Values = b.Values[:nfirst]
 		b.Values = append(b.Values, start[b.ID]...)
 		for _, v := range oldSched {
 			b.Values = append(b.Values, v)

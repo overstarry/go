@@ -157,12 +157,16 @@ func chanfn(name string, n int, t *types.Type) ir.Node {
 	return fn
 }
 
-func mapfn(name string, t *types.Type) ir.Node {
+func mapfn(name string, t *types.Type, isfat bool) ir.Node {
 	if !t.IsMap() {
 		base.Fatalf("mapfn %v", t)
 	}
 	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+	if mapfast(t) == mapslow || isfat {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+	} else {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Elem())
+	}
 	return fn
 }
 
@@ -171,7 +175,11 @@ func mapfndel(name string, t *types.Type) ir.Node {
 		base.Fatalf("mapfn %v", t)
 	}
 	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+	if mapfast(t) == mapslow {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+	} else {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+	}
 	return fn
 }
 
@@ -300,11 +308,12 @@ func mayCall(n ir.Node) bool {
 		default:
 			base.FatalfAt(n.Pos(), "mayCall %+v", n)
 
-		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER,
+			ir.OUNSAFEADD, ir.OUNSAFESLICE:
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
-			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD:
+			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD, ir.OSLICE2ARRPTR:
 			// These ops might panic, make sure they are done
 			// before we start marshaling args for a call. See issue 16760.
 			return true

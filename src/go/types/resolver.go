@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"sort"
 	"strconv"
@@ -191,7 +192,11 @@ func (check *Checker) importPackage(at positioner, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
-		check.pkgCnt[imp.name]++
+		// Once we've formatted an error message once, keep the pkgPathMap
+		// up-to-date on subsequent imports.
+		if check.pkgPathMap != nil {
+			check.markImports(imp)
+		}
 		return imp
 	}
 
@@ -378,7 +383,7 @@ func (check *Checker) collectObjects() {
 				info := &declInfo{file: fileScope, fdecl: d.decl}
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
-				if !d.decl.IsMethod() {
+				if d.decl.Recv.NumFields() == 0 {
 					// regular function
 					if d.decl.Recv != nil {
 						check.error(d.decl.Recv, _BadRecv, "method is missing receiver")
@@ -389,8 +394,8 @@ func (check *Checker) collectObjects() {
 						if name == "main" {
 							code = _InvalidMainDecl
 						}
-						if d.decl.Type.TParams != nil {
-							check.softErrorf(d.decl.Type.TParams, code, "func %s must have no type parameters", name)
+						if tparams := typeparams.Get(d.decl.Type); tparams != nil {
+							check.softErrorf(tparams, code, "func %s must have no type parameters", name)
 						}
 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
 							// TODO(rFindley) Should this be a hard error?
@@ -497,7 +502,7 @@ L: // unpack receiver type
 	if ptyp, _ := rtyp.(*ast.IndexExpr); ptyp != nil {
 		rtyp = ptyp.X
 		if unpackParams {
-			for _, arg := range unpackExpr(ptyp.Index) {
+			for _, arg := range typeparams.UnpackExpr(ptyp.Index) {
 				var par *ast.Ident
 				switch arg := arg.(type) {
 				case *ast.Ident:

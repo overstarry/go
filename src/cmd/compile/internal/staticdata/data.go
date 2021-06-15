@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 	"io"
 	"io/ioutil"
 	"os"
@@ -269,7 +270,7 @@ func NeedFuncSym(fn *ir.Func) {
 		// funcsymsmu, like in FuncSym.
 		base.Fatalf("NeedFuncSym must be called in serial")
 	}
-	if fn.ABI != obj.ABIInternal && objabi.Experiment.RegabiWrappers {
+	if fn.ABI != obj.ABIInternal && buildcfg.Experiment.RegabiWrappers {
 		// Function values must always reference ABIInternal
 		// entry points, so it doesn't make sense to create a
 		// funcsym for other ABIs.
@@ -286,10 +287,11 @@ func NeedFuncSym(fn *ir.Func) {
 		return
 	}
 	s := fn.Nname.Sym()
-	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
-		// runtime.getg(), getclosureptr(), getcallerpc(), and
-		// getcallersp() are not real functions and so do not
-		// get funcsyms.
+	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") ||
+		(base.Ctxt.Pkgpath == "internal/abi" && (s.Name == "FuncPCABI0" || s.Name == "FuncPCABIInternal")) {
+		// runtime.getg(), getclosureptr(), getcallerpc(), getcallersp(),
+		// and internal/abi.FuncPCABIxxx() are not real functions and so
+		// do not get funcsyms.
 		return
 	}
 	funcsyms = append(funcsyms, fn.Nname)

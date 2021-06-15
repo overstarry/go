@@ -692,18 +692,6 @@ const (
 	OpAMD64BTRQconst
 	OpAMD64BTSLconst
 	OpAMD64BTSQconst
-	OpAMD64BTCQmodify
-	OpAMD64BTCLmodify
-	OpAMD64BTSQmodify
-	OpAMD64BTSLmodify
-	OpAMD64BTRQmodify
-	OpAMD64BTRLmodify
-	OpAMD64BTCQconstmodify
-	OpAMD64BTCLconstmodify
-	OpAMD64BTSQconstmodify
-	OpAMD64BTSLconstmodify
-	OpAMD64BTRQconstmodify
-	OpAMD64BTRLconstmodify
 	OpAMD64TESTQ
 	OpAMD64TESTL
 	OpAMD64TESTW
@@ -2834,6 +2822,7 @@ const (
 	OpSlicePtr
 	OpSliceLen
 	OpSliceCap
+	OpSlicePtrUnchecked
 	OpComplexMake
 	OpComplexReal
 	OpComplexImag
@@ -8521,180 +8510,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "BTCQmodify",
-		auxType:        auxSymOff,
-		argLen:         3,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTCQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTCLmodify",
-		auxType:        auxSymOff,
-		argLen:         3,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTCL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTSQmodify",
-		auxType:        auxSymOff,
-		argLen:         3,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTSQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTSLmodify",
-		auxType:        auxSymOff,
-		argLen:         3,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTSL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTRQmodify",
-		auxType:        auxSymOff,
-		argLen:         3,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTRQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTRLmodify",
-		auxType:        auxSymOff,
-		argLen:         3,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTRL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTCQconstmodify",
-		auxType:        auxSymValAndOff,
-		argLen:         2,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTCQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTCLconstmodify",
-		auxType:        auxSymValAndOff,
-		argLen:         2,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTCL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTSQconstmodify",
-		auxType:        auxSymValAndOff,
-		argLen:         2,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTSQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTSLconstmodify",
-		auxType:        auxSymValAndOff,
-		argLen:         2,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTSL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTRQconstmodify",
-		auxType:        auxSymValAndOff,
-		argLen:         2,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTRQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
-		name:           "BTRLconstmodify",
-		auxType:        auxSymValAndOff,
-		argLen:         2,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		symEffect:      SymRead | SymWrite,
-		asm:            x86.ABTRL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
-			},
-		},
-	},
-	{
 		name:        "TESTQ",
 		argLen:      2,
 		commutative: true,
@@ -13878,7 +13693,7 @@ var opcodeTable = [...]opInfo{
 				{0, 2}, // R1
 				{1, 1}, // R0
 			},
-			clobbers: 16396, // R2 R3 R14
+			clobbers: 20492, // R2 R3 R12 R14
 			outputs: []outputInfo{
 				{0, 1}, // R0
 				{1, 2}, // R1
@@ -17227,7 +17042,7 @@ var opcodeTable = [...]opInfo{
 				{0, 2}, // R1
 				{1, 1}, // R0
 			},
-			clobbers: 16386, // R1 R14
+			clobbers: 20482, // R1 R12 R14
 		},
 	},
 	{
@@ -17241,7 +17056,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4}, // R2
 				{1, 2}, // R1
 			},
-			clobbers: 16391, // R0 R1 R2 R14
+			clobbers: 20487, // R0 R1 R2 R12 R14
 		},
 	},
 	{
@@ -17402,7 +17217,7 @@ var opcodeTable = [...]opInfo{
 				{0, 4}, // R2
 				{1, 8}, // R3
 			},
-			clobbers: 4294918144, // R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			clobbers: 4294922240, // R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 
@@ -35895,6 +35710,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SliceCap",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "SlicePtrUnchecked",
 		argLen:  1,
 		generic: true,
 	},

@@ -1570,6 +1570,14 @@
 (CSEL [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => y
 (CSEL0 [cc] x flag) && ccARM64Eval(cc, flag) > 0 => x
 (CSEL0 [cc] _ flag) && ccARM64Eval(cc, flag) < 0 => (MOVDconst [0])
+(CSNEG [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSNEG [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (NEG y)
+(CSINV [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSINV [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (Not y)
+(CSINC [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSINC [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (ADDconst [1] y)
+(CSETM [cc] flag) && ccARM64Eval(cc, flag) > 0 => (MOVDconst [-1])
+(CSETM [cc] flag) && ccARM64Eval(cc, flag) < 0 => (MOVDconst [0])
 
 // absorb flags back into boolean CSEL
 (CSEL [cc] x y (CMPWconst [0] boolval)) && cc == OpARM64NotEqual && flagArg(boolval) != nil =>
@@ -2851,3 +2859,12 @@
 (MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVDload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+
+// Arch-specific inlining for small or disjoint runtime.memmove
+(SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
+	&& sz >= 0
+	&& isSameCall(sym, "runtime.memmove")
+	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+	&& isInlinableMemmove(dst, src, sz, config)
+	&& clobber(s1, s2, s3, call)
+	=> (Move [sz] dst src mem)

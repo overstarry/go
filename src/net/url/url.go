@@ -909,15 +909,22 @@ func (v Values) Del(key string) {
 	delete(v, key)
 }
 
+// Has checks whether a given key is set.
+func (v Values) Has(key string) bool {
+	_, ok := v[key]
+	return ok
+}
+
 // ParseQuery parses the URL-encoded query string and returns
 // a map listing the values specified for each key.
 // ParseQuery always returns a non-nil map containing all the
 // valid query parameters found; err describes the first decoding error
 // encountered, if any.
 //
-// Query is expected to be a list of key=value settings separated by
-// ampersands or semicolons. A setting without an equals sign is
-// interpreted as a key set to an empty value.
+// Query is expected to be a list of key=value settings separated by ampersands.
+// A setting without an equals sign is interpreted as a key set to an empty
+// value.
+// Settings containing a non-URL-encoded semicolon are considered invalid.
 func ParseQuery(query string) (Values, error) {
 	m := make(Values)
 	err := parseQuery(m, query)
@@ -927,10 +934,14 @@ func ParseQuery(query string) (Values, error) {
 func parseQuery(m Values, query string) (err error) {
 	for query != "" {
 		key := query
-		if i := strings.IndexAny(key, "&;"); i >= 0 {
+		if i := strings.IndexAny(key, "&"); i >= 0 {
 			key, query = key[:i], key[i+1:]
 		} else {
 			query = ""
+		}
+		if strings.Contains(key, ";") {
+			err = fmt.Errorf("invalid semicolon separator in query")
+			continue
 		}
 		if key == "" {
 			continue
@@ -1009,6 +1020,8 @@ func resolvePath(base, ref string) string {
 	)
 	first := true
 	remaining := full
+	// We want to return a leading '/', so write it now.
+	dst.WriteByte('/')
 	for i >= 0 {
 		i = strings.IndexByte(remaining, '/')
 		if i < 0 {
@@ -1023,10 +1036,12 @@ func resolvePath(base, ref string) string {
 		}
 
 		if elem == ".." {
-			str := dst.String()
+			// Ignore the leading '/' we already wrote.
+			str := dst.String()[1:]
 			index := strings.LastIndexByte(str, '/')
 
 			dst.Reset()
+			dst.WriteByte('/')
 			if index == -1 {
 				first = true
 			} else {
@@ -1045,7 +1060,12 @@ func resolvePath(base, ref string) string {
 		dst.WriteByte('/')
 	}
 
-	return "/" + strings.TrimPrefix(dst.String(), "/")
+	// We wrote an initial '/', but we don't want two.
+	r := dst.String()
+	if len(r) > 1 && r[1] == '/' {
+		r = r[1:]
+	}
+	return r
 }
 
 // IsAbs reports whether the URL is absolute.

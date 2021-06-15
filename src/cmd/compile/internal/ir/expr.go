@@ -136,7 +136,7 @@ func (n *BinaryExpr) SetOp(op Op) {
 		panic(n.no("SetOp " + op.String()))
 	case OADD, OADDSTR, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
 		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
-		OCOPY, OCOMPLEX,
+		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE,
 		OEFACE:
 		n.op = op
 	}
@@ -277,7 +277,7 @@ func (n *ConvExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR:
+	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARRPTR:
 		n.op = op
 	}
 }
@@ -748,13 +748,6 @@ func IsAddressable(n Node) bool {
 	case ODEREF, ODOTPTR:
 		return true
 
-	case OXDOT:
-		// TODO(danscales): remove this case as we remove calls to the old
-		// typechecker in (*irgen).funcBody().
-		if base.Flag.G == 0 {
-			return false
-		}
-		fallthrough
 	case ODOT:
 		n := n.(*SelectorExpr)
 		return IsAddressable(n.X)
@@ -1067,7 +1060,7 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 	return rpkg.LookupBytes(b.Bytes())
 }
 
-// MethodName returns the ONAME representing the method
+// MethodExprName returns the ONAME representing the method
 // referenced by expression n, which must be a method selector,
 // method expression, or method value.
 func MethodExprName(n Node) *Name {
@@ -1075,7 +1068,7 @@ func MethodExprName(n Node) *Name {
 	return name
 }
 
-// MethodFunc is like MethodName, but returns the types.Field instead.
+// MethodExprFunc is like MethodExprName, but returns the types.Field instead.
 func MethodExprFunc(n Node) *types.Field {
 	switch n.Op() {
 	case ODOTMETH, OMETHEXPR, OCALLPART:

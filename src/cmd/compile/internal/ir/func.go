@@ -160,7 +160,10 @@ func (f *Func) LinksymABI(abi obj.ABI) *obj.LSym { return f.Nname.LinksymABI(abi
 type Inline struct {
 	Cost int32 // heuristic cost of inlining this function
 
-	// Copies of Func.Dcl and Nbody for use during inlining.
+	// Copies of Func.Dcl and Func.Body for use during inlining. Copies are
+	// needed because the function's dcl/body may be changed by later compiler
+	// transformations. These fields are also populated when a function from
+	// another package is imported.
 	Dcl  []*Name
 	Body []Node
 }
@@ -238,7 +241,7 @@ func (f *Func) SetWBPos(pos src.XPos) {
 	}
 }
 
-// funcname returns the name (without the package) of the function n.
+// FuncName returns the name (without the package) of the function n.
 func FuncName(f *Func) string {
 	if f == nil || f.Nname == nil {
 		return "<nil>"
@@ -246,7 +249,7 @@ func FuncName(f *Func) string {
 	return f.Sym().Name
 }
 
-// pkgFuncName returns the name of the function referenced by n, with package prepended.
+// PkgFuncName returns the name of the function referenced by n, with package prepended.
 // This differs from the compiler's internal convention where local functions lack a package
 // because the ultimate consumer of this is a human looking at an IDE; package is only empty
 // if the compilation package is actually the empty string.

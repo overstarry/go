@@ -174,8 +174,8 @@
 // 		a build will run as if the disk file path exists with the contents
 // 		given by the backing file paths, or as if the disk file path does not
 // 		exist if its backing file path is empty. Support for the -overlay flag
-// 		has some limitations:importantly, cgo files included from outside the
-// 		include path must be  in the same directory as the Go package they are
+// 		has some limitations: importantly, cgo files included from outside the
+// 		include path must be in the same directory as the Go package they are
 // 		included from, and overlays will not appear when binaries and tests are
 // 		run through go run and go test respectively.
 // 	-pkgdir dir
@@ -198,6 +198,8 @@
 // 		a program to use to invoke toolchain programs like vet and asm.
 // 		For example, instead of running asm, the go command will run
 // 		'cmd args /path/to/asm <arguments for asm>'.
+// 		The TOOLEXEC_IMPORTPATH environment variable will be set,
+// 		matching 'go list -f {{.ImportPath}}' for the package being built.
 //
 // The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
 // space-separated list of arguments to pass to an underlying tool
@@ -291,7 +293,7 @@
 //
 // Usage:
 //
-// 	go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]
+// 	go doc [doc flags] [package|[package.]symbol[.methodOrField]]
 //
 // Doc prints the documentation comments associated with the item identified by its
 // arguments (a package, const, func, type, var, method, or struct field)
@@ -841,6 +843,7 @@
 //         UseAllFiles   bool     // use files regardless of +build lines, file names
 //         Compiler      string   // compiler to assume when computing target paths
 //         BuildTags     []string // build constraints to match in +build lines
+//         ToolTags      []string // toolchain-specific build constraints
 //         ReleaseTags   []string // releases the current release is compatible with
 //         InstallSuffix string   // suffix to use in the name of the install dir
 //     }
@@ -1134,17 +1137,22 @@
 // writing it back to go.mod. The JSON output corresponds to these Go types:
 //
 // 	type Module struct {
-// 		Path string
+// 		Path    string
 // 		Version string
 // 	}
 //
 // 	type GoMod struct {
-// 		Module  Module
+// 		Module  ModPath
 // 		Go      string
 // 		Require []Require
 // 		Exclude []Module
 // 		Replace []Replace
 // 		Retract []Retract
+// 	}
+//
+// 	type ModPath struct {
+// 		Path       string
+// 		Deprecated string
 // 	}
 //
 // 	type Require struct {
@@ -1213,7 +1221,7 @@
 //
 // Usage:
 //
-// 	go mod tidy [-e] [-v]
+// 	go mod tidy [-e] [-v] [-go=version] [-compat=version]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1226,6 +1234,20 @@
 //
 // The -e flag causes tidy to attempt to proceed despite errors
 // encountered while loading packages.
+//
+// The -go flag causes tidy to update the 'go' directive in the go.mod
+// file to the given version, which may change which module dependencies
+// are retained as explicit requirements in the go.mod file.
+// (Go versions 1.17 and higher retain more requirements in order to
+// support lazy module loading.)
+//
+// The -compat flag preserves any additional checksums needed for the
+// 'go' command from the indicated major Go release to successfully load
+// the module graph, and causes tidy to error out if that version of the
+// 'go' command would load any imported package from a different module
+// version. By default, tidy acts as if the -compat flag were set to the
+// version prior to the one indicated by the 'go' directive in the go.mod
+// file.
 //
 // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 //
@@ -1310,9 +1332,20 @@
 // 	go run [build flags] [-exec xprog] package [arguments...]
 //
 // Run compiles and runs the named main Go package.
-// Typically the package is specified as a list of .go source files from a single directory,
-// but it may also be an import path, file system path, or pattern
+// Typically the package is specified as a list of .go source files from a single
+// directory, but it may also be an import path, file system path, or pattern
 // matching a single known package, as in 'go run .' or 'go run my/cmd'.
+//
+// If the package argument has a version suffix (like @latest or @v1.0.0),
+// "go run" builds the program in module-aware mode, ignoring the go.mod file in
+// the current directory or any parent directory, if there is one. This is useful
+// for running programs without affecting the dependencies of the main module.
+//
+// If the package argument doesn't have a version suffix, "go run" may run in
+// module-aware mode or GOPATH mode, depending on the GO111MODULE environment
+// variable and the presence of a go.mod file. See 'go help modules' for details.
+// If module-aware mode is enabled, "go run" runs in the context of the main
+// module.
 //
 // By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
 // If the -exec flag is given, 'go run' invokes the binary using xprog:
@@ -2647,6 +2680,13 @@
 // 	    It is off by default but set during all.bash so that installing
 // 	    the Go tree can run a sanity check but not spend time running
 // 	    exhaustive tests.
+//
+// 	-shuffle off,on,N
+// 		Randomize the execution order of tests and benchmarks.
+// 		It is off by default. If -shuffle is set to on, then it will seed
+// 		the randomizer using the system clock. If -shuffle is set to an
+// 		integer N, then N will be used as the seed value. In both cases,
+// 		the seed will be reported for reproducibility.
 //
 // 	-timeout d
 // 	    If a test binary runs longer than duration d, panic.

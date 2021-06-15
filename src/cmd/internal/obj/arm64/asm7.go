@@ -321,12 +321,12 @@ var optab = []Optab{
 	{ACMP, C_VCON, C_REG, C_NONE, C_NONE, 13, 20, 0, 0, 0},
 	{AADD, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AADD, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
-	{AADD, C_SHIFT, C_RSP, C_NONE, C_RSP, 107, 4, 0, 0, 0},
-	{AADD, C_SHIFT, C_NONE, C_NONE, C_RSP, 107, 4, 0, 0, 0},
+	{AADD, C_SHIFT, C_RSP, C_NONE, C_RSP, 26, 4, 0, 0, 0},
+	{AADD, C_SHIFT, C_NONE, C_NONE, C_RSP, 26, 4, 0, 0, 0},
 	{AMVN, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{ACMP, C_SHIFT, C_REG, C_NONE, C_NONE, 3, 4, 0, 0, 0},
-	{ACMP, C_SHIFT, C_RSP, C_NONE, C_NONE, 107, 4, 0, 0, 0},
-	{ANEG, C_SHIFT, C_NONE, C_NONE, C_REG, 26, 4, 0, 0, 0},
+	{ACMP, C_SHIFT, C_RSP, C_NONE, C_NONE, 26, 4, 0, 0, 0},
+	{ANEG, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AADD, C_REG, C_RSP, C_NONE, C_RSP, 27, 4, 0, 0, 0},
 	{AADD, C_REG, C_NONE, C_NONE, C_RSP, 27, 4, 0, 0, 0},
 	{ACMP, C_REG, C_RSP, C_NONE, C_NONE, 27, 4, 0, 0, 0},
@@ -720,7 +720,7 @@ var optab = []Optab{
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_PQAUTO_16, 67, 4, REGSP, 0, C_XPRE},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_PQAUTO_16, 67, 4, REGSP, 0, C_XPOST},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 12, REGSP, 0, 0},
+	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NQOREG_16, 67, 4, 0, 0, 0},
 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NQOREG_16, 67, 4, 0, 0, C_XPRE},
@@ -760,7 +760,7 @@ var optab = []Optab{
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPRE},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPOST},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
-	{ASTP, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 12, REGSP, 0, 0},
+	{ASTP, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_NPOREG, 67, 4, 0, 0, 0},
 	{ASTP, C_PAIR, C_NONE, C_NONE, C_NPOREG, 67, 4, 0, 0, C_XPRE},
@@ -801,7 +801,7 @@ var optab = []Optab{
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, C_XPRE},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, C_XPOST},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 12, REGSP, 0, 0},
+	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NSOREG_4, 67, 4, 0, 0, 0},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NSOREG_4, 67, 4, 0, 0, C_XPRE},
@@ -1342,6 +1342,22 @@ func isADDop(op obj.As) bool {
 func isADDWop(op obj.As) bool {
 	switch op {
 	case AADDW, AADDSW, ASUBW, ASUBSW, ACMNW, ACMPW:
+		return true
+	}
+	return false
+}
+
+func isADDSop(op obj.As) bool {
+	switch op {
+	case AADDS, AADDSW, ASUBS, ASUBSW:
+		return true
+	}
+	return false
+}
+
+func isNEGop(op obj.As) bool {
+	switch op {
+	case ANEG, ANEGW, ANEGS, ANEGSW:
 		return true
 	}
 	return false
@@ -3215,6 +3231,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 2: /* add/sub $(uimm12|uimm24)[,R],R; cmp $(uimm12|uimm24),R */
+		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
+		}
 		o1 = c.opirr(p, p.As)
 
 		rt := int(p.To.Reg)
@@ -3240,13 +3259,17 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if is64bit == 0 && amount >= 32 {
 			c.ctxt.Diag("shift amount out of range 0 to 31: %v", p)
 		}
+		shift := (p.From.Offset >> 22) & 3
+		if (shift > 2 || shift < 0) && (isADDop(p.As) || isADDWop(p.As) || isNEGop(p.As)) {
+			c.ctxt.Diag("unsupported shift operator: %v", p)
+		}
 		o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
 		rt := int(p.To.Reg)
 		if p.To.Type == obj.TYPE_NONE {
 			rt = REGZERO
 		}
 		r := int(p.Reg)
-		if p.As == AMVN || p.As == AMVNW {
+		if p.As == AMVN || p.As == AMVNW || isNEGop(p.As) {
 			r = REGZERO
 		} else if r == 0 {
 			r = rt
@@ -3396,6 +3419,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o4 = os[3]
 
 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
+		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
+		}
 		o := uint32(0)
 		num := uint8(0)
 		cls := oclass(&p.From)
@@ -3510,27 +3536,25 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(p, p.As)
 
 		cond := int(p.From.Reg)
-		if cond < COND_EQ || cond > COND_NV {
+		// AL and NV are not allowed for CINC/CINV/CNEG/CSET/CSETM instructions
+		if cond < COND_EQ || cond > COND_NV || (cond == COND_AL || cond == COND_NV) && p.From3Type() == obj.TYPE_NONE {
 			c.ctxt.Diag("invalid condition: %v", p)
 		} else {
 			cond -= COND_EQ
 		}
 
 		r := int(p.Reg)
-		var rf int
-		if r != 0 {
-			if p.From3Type() == obj.TYPE_NONE {
-				/* CINC/CINV/CNEG */
-				rf = r
-				cond ^= 1
-			} else {
-				rf = int(p.GetFrom3().Reg) /* CSEL */
+		var rf int = r
+		if p.From3Type() == obj.TYPE_NONE {
+			/* CINC/CINV/CNEG or CSET/CSETM*/
+			if r == 0 {
+				/* CSET/CSETM */
+				rf = REGZERO
+				r = rf
 			}
-		} else {
-			/* CSET */
-			rf = REGZERO
-			r = rf
 			cond ^= 1
+		} else {
+			rf = int(p.GetFrom3().Reg) /* CSEL */
 		}
 
 		rt := int(p.To.Reg)
@@ -3595,7 +3619,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := int32(p.From.Offset)
 
 		if v < -256 || v > 255 {
-			c.ctxt.Diag("offset out of range [-255,254]: %v", p)
+			c.ctxt.Diag("offset out of range [-256,255]: %v", p)
 		}
 		o1 = c.opldr(p, p.As)
 		if o.scond == C_XPOST {
@@ -3613,7 +3637,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := int32(p.To.Offset)
 
 		if v < -256 || v > 255 {
-			c.ctxt.Diag("offset out of range [-255,254]: %v", p)
+			c.ctxt.Diag("offset out of range [-256,255]: %v", p)
 		}
 		o1 = c.opstr(p, p.As)
 		if o.scond == C_XPOST {
@@ -3651,14 +3675,45 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		o1 |= (uint32(rf&31) << 16) | (REGZERO & 31 << 5) | uint32(rt&31)
 
-	case 26: /* negX Rm<<s, Rd -> subX Rm<<s, ZR, Rd */
-		o1 = c.oprrr(p, p.As)
+	case 26: // op R<<n, RSP, RSP (extended register)
+		// Refer to ARM reference manual, if "Rd" or "Rn" is RSP,
+		// it can be encoded as op(extended regster) instruction.
+		if !(p.To.Reg == REGSP || p.Reg == REGSP) {
+			c.ctxt.Diag("expected SP reference: %v", p)
+			break
+		}
+		if p.To.Reg == REGSP && (p.As == AADDS || p.As == AADDSW || p.As == ASUBS || p.As == ASUBSW) {
+			c.ctxt.Diag("unexpected SP reference: %v", p)
+			break
+		}
+		amount := (p.From.Offset >> 10) & 63
+		shift := (p.From.Offset >> 22) & 3
+		if shift != 0 {
+			c.ctxt.Diag("illegal combination: %v", p)
+			break
+		}
 
-		o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
+		if amount > 4 {
+			c.ctxt.Diag("the left shift amount out of range 0 to 4: %v", p)
+			break
+		}
+		rf := (p.From.Offset >> 16) & 31
 		rt := int(p.To.Reg)
-		o1 |= (REGZERO & 31 << 5) | uint32(rt&31)
+		r := int(p.Reg)
+		if p.To.Type == obj.TYPE_NONE {
+			rt = REGZERO
+		}
+		if r == 0 {
+			r = rt
+		}
+
+		o1 = c.opxrrr(p, p.As, false)
+		o1 |= uint32(rf)<<16 | uint32(amount&7)<<10 | (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
+		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
+		}
 		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 {
 			amount := (p.From.Reg >> 5) & 7
 			if amount > 4 {
@@ -4274,6 +4329,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 62: /* op $movcon, [R], R -> mov $movcon, REGTMP + op REGTMP, [R], R */
 		if p.Reg == REGTMP {
 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+		}
+		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
 		if isADDWop(p.As) || isANDWop(p.As) {
 			o1 = c.omovconst(AMOVW, p, &p.From, REGTMP)
@@ -5472,41 +5530,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
 		o1 |= enc | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
-
-	case 107: // op R<<n, RSP, RSP (extended register)
-		// Refer to ARM reference manual, if "Rd" or "Rn" is RSP,
-		// it can be encoded as op(extended regster) instruction.
-		if !(p.To.Reg == REGSP || p.Reg == REGSP) {
-			c.ctxt.Diag("expected SP reference: %v", p)
-			break
-		}
-		if p.To.Reg == REGSP && (p.As == AADDS || p.As == AADDSW || p.As == ASUBS || p.As == ASUBSW) {
-			c.ctxt.Diag("unexpected SP reference: %v", p)
-			break
-		}
-		amount := (p.From.Offset >> 10) & 63
-		shift := (p.From.Offset >> 22) & 3
-		if shift != 0 {
-			c.ctxt.Diag("illegal combination: %v", p)
-			break
-		}
-
-		if amount > 4 {
-			c.ctxt.Diag("the left shift amount out of range 0 to 4: %v", p)
-			break
-		}
-		rf := (p.From.Offset >> 16) & 31
-		rt := int(p.To.Reg)
-		r := int(p.Reg)
-		if p.To.Type == obj.TYPE_NONE {
-			rt = REGZERO
-		}
-		if r == 0 {
-			r = rt
-		}
-
-		o1 = c.opxrrr(p, p.As, false)
-		o1 |= uint32(rf)<<16 | uint32(amount&7)<<10 | (uint32(r&31) << 5) | uint32(rt&31)
 	}
 	out[0] = o1
 	out[1] = o2

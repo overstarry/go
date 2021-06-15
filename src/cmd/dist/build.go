@@ -1541,7 +1541,7 @@ func checkNotStale(goBinary string, targets ...string) {
 				break
 			}
 		}
-		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v:\n%s", goBinary, gogcflags, goldflags, targets, out)
+		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v (consider rerunning with GOMAXPROCS=1 GODEBUG=gocachehash=1):\n%s", goBinary, gogcflags, goldflags, targets, out)
 	}
 }
 
@@ -1590,7 +1590,7 @@ var cgoEnabled = map[string]bool{
 	"openbsd/amd64":   true,
 	"openbsd/arm":     true,
 	"openbsd/arm64":   true,
-	"openbsd/mips64":  false,
+	"openbsd/mips64":  true,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
@@ -1598,13 +1598,25 @@ var cgoEnabled = map[string]bool{
 	"windows/386":     true,
 	"windows/amd64":   true,
 	"windows/arm":     false,
-	"windows/arm64":   false,
+	"windows/arm64":   true,
 }
 
 // List of platforms which are supported but not complete yet. These get
 // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
 var incomplete = map[string]bool{
 	"linux/sparc64": true,
+}
+
+// List of platforms which are first class ports. See golang.org/issue/38874.
+var firstClass = map[string]bool{
+	"darwin/amd64":  true,
+	"darwin/arm64":  true,
+	"linux/386":     true,
+	"linux/amd64":   true,
+	"linux/arm":     true,
+	"linux/arm64":   true,
+	"windows/386":   true,
+	"windows/amd64": true,
 }
 
 func needCC() bool {
@@ -1743,6 +1755,7 @@ func cmdlist() {
 		GOOS         string
 		GOARCH       string
 		CgoSupported bool
+		FirstClass   bool
 	}
 	var results []jsonResult
 	for _, p := range plats {
@@ -1750,7 +1763,8 @@ func cmdlist() {
 		results = append(results, jsonResult{
 			GOOS:         fields[0],
 			GOARCH:       fields[1],
-			CgoSupported: cgoEnabled[p]})
+			CgoSupported: cgoEnabled[p],
+			FirstClass:   firstClass[p]})
 	}
 	out, err := json.MarshalIndent(results, "", "\t")
 	if err != nil {
@@ -1764,8 +1778,9 @@ func cmdlist() {
 // IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
 // belongs to the collection of "runtime-related" packages, including
 // "runtime" itself, "reflect", "syscall", and the
-// "runtime/internal/*" packages. See also the function of the same
-// name in cmd/internal/objabi/path.go.
+// "runtime/internal/*" packages.
+//
+// Keep in sync with cmd/internal/objabi/path.go:IsRuntimePackagePath.
 func IsRuntimePackagePath(pkgpath string) bool {
 	rval := false
 	switch pkgpath {
@@ -1775,7 +1790,7 @@ func IsRuntimePackagePath(pkgpath string) bool {
 		rval = true
 	case "syscall":
 		rval = true
-	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
+	case "internal/bytealg":
 		rval = true
 	default:
 		rval = strings.HasPrefix(pkgpath, "runtime/internal")

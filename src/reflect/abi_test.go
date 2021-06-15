@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build goexperiment.regabi
-//go:build goexperiment.regabi
+//go:build goexperiment.regabireflect
+// +build goexperiment.regabireflect
 
 package reflect_test
 
@@ -16,29 +16,16 @@ import (
 	"testing/quick"
 )
 
+// As of early May 2021 this is no longer necessary for amd64,
+// but it remains in case this is needed for the next register abi port.
+// TODO (1.18) If enabling register ABI on additional architectures turns out not to need this, remove it.
 type MagicLastTypeNameForTestingRegisterABI struct{}
 
 func TestMethodValueCallABI(t *testing.T) {
 	// Enable register-based reflect.Call and ensure we don't
 	// use potentially incorrect cached versions by clearing
 	// the cache before we start and after we're done.
-	var oldRegs struct {
-		ints, floats int
-		floatSize    uintptr
-	}
-	oldRegs.ints = *reflect.IntArgRegs
-	oldRegs.floats = *reflect.FloatArgRegs
-	oldRegs.floatSize = *reflect.FloatRegSize
-	*reflect.IntArgRegs = abi.IntArgRegs
-	*reflect.FloatArgRegs = abi.FloatArgRegs
-	*reflect.FloatRegSize = uintptr(abi.EffectiveFloatRegSize)
-	reflect.ClearLayoutCache()
-	defer func() {
-		*reflect.IntArgRegs = oldRegs.ints
-		*reflect.FloatArgRegs = oldRegs.floats
-		*reflect.FloatRegSize = oldRegs.floatSize
-		reflect.ClearLayoutCache()
-	}()
+	defer reflect.SetArgRegs(reflect.SetArgRegs(abi.IntArgRegs, abi.FloatArgRegs, abi.EffectiveFloatRegSize))
 
 	// This test is simple. Calling a method value involves
 	// pretty much just plumbing whatever arguments in whichever
@@ -92,7 +79,34 @@ func TestMethodValueCallABI(t *testing.T) {
 		t.Errorf("bad method value call: got %#v, want %#v", r2, a2)
 	}
 	if s.Value != 3 {
-		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 1)
+		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 3)
+	}
+
+	s, i = makeMethodValue("ValueRegMethodSpillInt")
+	f3 := i.(func(StructFillRegs, int, MagicLastTypeNameForTestingRegisterABI) (StructFillRegs, int))
+	r3a, r3b := f3(a2, 42, MagicLastTypeNameForTestingRegisterABI{})
+	if r3a != a2 {
+		t.Errorf("bad method value call: got %#v, want %#v", r3a, a2)
+	}
+	if r3b != 42 {
+		t.Errorf("bad method value call: got %#v, want %#v", r3b, 42)
+	}
+	if s.Value != 4 {
+		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 4)
+	}
+
+	s, i = makeMethodValue("ValueRegMethodSpillPtr")
+	f4 := i.(func(StructFillRegs, *byte, MagicLastTypeNameForTestingRegisterABI) (StructFillRegs, *byte))
+	vb := byte(10)
+	r4a, r4b := f4(a2, &vb, MagicLastTypeNameForTestingRegisterABI{})
+	if r4a != a2 {
+		t.Errorf("bad method value call: got %#v, want %#v", r4a, a2)
+	}
+	if r4b != &vb {
+		t.Errorf("bad method value call: got %#v, want %#v", r4b, &vb)
+	}
+	if s.Value != 5 {
+		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 5)
 	}
 }
 
@@ -125,27 +139,25 @@ func (m *StructWithMethods) SpillStructCall(s StructFillRegs, _ MagicLastTypeNam
 	return s
 }
 
+// When called as a method value, i is passed on the stack.
+// When called as a method, i is passed in a register.
+func (m *StructWithMethods) ValueRegMethodSpillInt(s StructFillRegs, i int, _ MagicLastTypeNameForTestingRegisterABI) (StructFillRegs, int) {
+	m.Value = 4
+	return s, i
+}
+
+// When called as a method value, i is passed on the stack.
+// When called as a method, i is passed in a register.
+func (m *StructWithMethods) ValueRegMethodSpillPtr(s StructFillRegs, i *byte, _ MagicLastTypeNameForTestingRegisterABI) (StructFillRegs, *byte) {
+	m.Value = 5
+	return s, i
+}
+
 func TestReflectCallABI(t *testing.T) {
 	// Enable register-based reflect.Call and ensure we don't
 	// use potentially incorrect cached versions by clearing
 	// the cache before we start and after we're done.
-	var oldRegs struct {
-		ints, floats int
-		floatSize    uintptr
-	}
-	oldRegs.ints = *reflect.IntArgRegs
-	oldRegs.floats = *reflect.FloatArgRegs
-	oldRegs.floatSize = *reflect.FloatRegSize
-	*reflect.IntArgRegs = abi.IntArgRegs
-	*reflect.FloatArgRegs = abi.FloatArgRegs
-	*reflect.FloatRegSize = uintptr(abi.EffectiveFloatRegSize)
-	reflect.ClearLayoutCache()
-	defer func() {
-		*reflect.IntArgRegs = oldRegs.ints
-		*reflect.FloatArgRegs = oldRegs.floats
-		*reflect.FloatRegSize = oldRegs.floatSize
-		reflect.ClearLayoutCache()
-	}()
+	defer reflect.SetArgRegs(reflect.SetArgRegs(abi.IntArgRegs, abi.FloatArgRegs, abi.EffectiveFloatRegSize))
 
 	// Execute the functions defined below which all have the
 	// same form and perform the same function: pass all arguments
@@ -182,23 +194,7 @@ func TestReflectMakeFuncCallABI(t *testing.T) {
 	// Enable register-based reflect.MakeFunc and ensure we don't
 	// use potentially incorrect cached versions by clearing
 	// the cache before we start and after we're done.
-	var oldRegs struct {
-		ints, floats int
-		floatSize    uintptr
-	}
-	oldRegs.ints = *reflect.IntArgRegs
-	oldRegs.floats = *reflect.FloatArgRegs
-	oldRegs.floatSize = *reflect.FloatRegSize
-	*reflect.IntArgRegs = abi.IntArgRegs
-	*reflect.FloatArgRegs = abi.FloatArgRegs
-	*reflect.FloatRegSize = uintptr(abi.EffectiveFloatRegSize)
-	reflect.ClearLayoutCache()
-	defer func() {
-		*reflect.IntArgRegs = oldRegs.ints
-		*reflect.FloatArgRegs = oldRegs.floats
-		*reflect.FloatRegSize = oldRegs.floatSize
-		reflect.ClearLayoutCache()
-	}()
+	defer reflect.SetArgRegs(reflect.SetArgRegs(abi.IntArgRegs, abi.FloatArgRegs, abi.EffectiveFloatRegSize))
 
 	// Execute the functions defined below which all have the
 	// same form and perform the same function: pass all arguments

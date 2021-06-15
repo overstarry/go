@@ -6,17 +6,18 @@ package amd64
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"math"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
-	"cmd/internal/objabi"
 )
 
 // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
@@ -755,7 +756,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore, ssa.OpAMD64MOVOstore,
-		ssa.OpAMD64BTCQmodify, ssa.OpAMD64BTCLmodify, ssa.OpAMD64BTRQmodify, ssa.OpAMD64BTRLmodify, ssa.OpAMD64BTSQmodify, ssa.OpAMD64BTSLmodify,
 		ssa.OpAMD64ADDQmodify, ssa.OpAMD64SUBQmodify, ssa.OpAMD64ANDQmodify, ssa.OpAMD64ORQmodify, ssa.OpAMD64XORQmodify,
 		ssa.OpAMD64ADDLmodify, ssa.OpAMD64SUBLmodify, ssa.OpAMD64ANDLmodify, ssa.OpAMD64ORLmodify, ssa.OpAMD64XORLmodify:
 		p := s.Prog(v.Op.Asm())
@@ -803,8 +803,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		fallthrough
 	case ssa.OpAMD64ANDQconstmodify, ssa.OpAMD64ANDLconstmodify, ssa.OpAMD64ORQconstmodify, ssa.OpAMD64ORLconstmodify,
-		ssa.OpAMD64BTCQconstmodify, ssa.OpAMD64BTCLconstmodify, ssa.OpAMD64BTSQconstmodify, ssa.OpAMD64BTSLconstmodify,
-		ssa.OpAMD64BTRQconstmodify, ssa.OpAMD64BTRLconstmodify, ssa.OpAMD64XORQconstmodify, ssa.OpAMD64XORLconstmodify:
+		ssa.OpAMD64XORQconstmodify, ssa.OpAMD64XORLconstmodify:
 		sc := v.AuxValAndOff()
 		off := sc.Off64()
 		val := sc.Val64()
@@ -824,7 +823,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.OpAMD64MOVOstorezero:
-		if !objabi.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
@@ -915,7 +914,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpAMD64DUFFZERO:
-		if !objabi.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
@@ -988,9 +987,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// The loop only runs once.
 		for _, ap := range v.Block.Func.RegArgs {
 			// Pass the spill/unspill information along to the assembler, offset by size of return PC pushed on stack.
-			addr := ssagen.SpillSlotAddr(ap.Mem(), x86.REG_SP, v.Block.Func.Config.PtrSize)
+			addr := ssagen.SpillSlotAddr(ap, x86.REG_SP, v.Block.Func.Config.PtrSize)
 			s.FuncInfo().AddSpill(
-				obj.RegSpill{Reg: ap.Reg(), Addr: addr, Unspill: loadByType(ap.Type()), Spill: storeByType(ap.Type())})
+				obj.RegSpill{Reg: ap.Reg, Addr: addr, Unspill: loadByType(ap.Type), Spill: storeByType(ap.Type)})
 		}
 		v.Block.Func.RegArgs = nil
 		ssagen.CheckArgReg(v)
@@ -998,20 +997,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// Closure pointer is DX.
 		ssagen.CheckLoweredGetClosurePtr(v)
 	case ssa.OpAMD64LoweredGetG:
-		if objabi.Experiment.RegabiG && s.ABI == obj.ABIInternal {
+		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal {
 			v.Fatalf("LoweredGetG should not appear in ABIInternal")
 		}
 		r := v.Reg()
 		getgFromTLS(s, r)
 	case ssa.OpAMD64CALLstatic:
-		if objabi.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
 		s.Call(v)
-		if objabi.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 			// set G register from TLS
@@ -1305,7 +1304,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:
-		if objabi.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
+		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 			// set G register from TLS
@@ -1347,4 +1346,28 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
+}
+
+func loadRegResults(s *ssagen.State, f *ssa.Func) {
+	for _, o := range f.OwnAux.ABIInfo().OutParams() {
+		n := o.Name.(*ir.Name)
+		rts, offs := o.RegisterTypesAndOffsets()
+		for i := range o.Registers {
+			p := s.Prog(loadByType(rts[i]))
+			p.From.Type = obj.TYPE_MEM
+			p.From.Name = obj.NAME_AUTO
+			p.From.Sym = n.Linksym()
+			p.From.Offset = n.FrameOffset() + offs[i]
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ssa.ObjRegForAbiReg(o.Registers[i], f.Config)
+		}
+	}
+}
+
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
+	p.To.Name = obj.NAME_PARAM
+	p.To.Sym = n.Linksym()
+	p.Pos = p.Pos.WithNotStmt()
+	return p
 }

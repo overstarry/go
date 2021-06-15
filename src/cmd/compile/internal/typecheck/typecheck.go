@@ -66,6 +66,8 @@ func FuncBody(n *ir.Func) {
 
 var importlist []*ir.Func
 
+// AllImportedBodies reads in the bodies of all imported functions and typechecks
+// them, if needed.
 func AllImportedBodies() {
 	for _, n := range importlist {
 		if n.Inl != nil {
@@ -596,6 +598,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OANDAND, ir.OOROR:
 		n := n.(*ir.LogicalExpr)
 		n.X, n.Y = Expr(n.X), Expr(n.Y)
+		if n.X.Type() == nil || n.Y.Type() == nil {
+			n.SetType(nil)
+			return n
+		}
 		// For "x == x && len(s)", it's better to report that "len(s)" (type int)
 		// can't be used with "&&" than to report that "x == x" (type untyped bool)
 		// can't be converted to int (see issue #41500).
@@ -771,6 +777,14 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.CallExpr)
 		return tcRecover(n)
 
+	case ir.OUNSAFEADD:
+		n := n.(*ir.BinaryExpr)
+		return tcUnsafeAdd(n)
+
+	case ir.OUNSAFESLICE:
+		n := n.(*ir.BinaryExpr)
+		return tcUnsafeSlice(n)
+
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
 		tcClosure(n, top)
@@ -931,16 +945,18 @@ func typecheckargs(n ir.InitNode) {
 		return
 	}
 
-	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
-
 	// Save n as n.Orig for fmt.go.
 	if ir.Orig(n) == n {
 		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
 	}
 
-	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-	as.Rhs.Append(list...)
+	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+	rewriteMultiValueCall(n, list[0])
+}
 
+// rewriteMultiValueCall rewrites multi-valued f() to use temporaries,
+// so the backend wouldn't need to worry about tuple-valued expressions.
+func rewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	// If we're outside of function context, then this call will
 	// be executed during the generated init function. However,
 	// init.go hasn't yet created it. Instead, associate the
@@ -950,25 +966,40 @@ func typecheckargs(n ir.InitNode) {
 	if static {
 		ir.CurFunc = InitTodoFunc
 	}
-	list = nil
-	for _, f := range t.FieldSlice() {
-		t := Temp(f.Type)
-		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, t))
-		as.Lhs.Append(t)
-		list = append(list, t)
+
+	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{call})
+	results := call.Type().FieldSlice()
+	list := make([]ir.Node, len(results))
+	for i, result := range results {
+		tmp := Temp(result.Type)
+		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, tmp))
+		as.Lhs.Append(tmp)
+		list[i] = tmp
 	}
 	if static {
 		ir.CurFunc = nil
 	}
 
+	n.PtrInit().Append(Stmt(as))
+
 	switch n := n.(type) {
+	default:
+		base.Fatalf("rewriteMultiValueCall %+v", n.Op())
 	case *ir.CallExpr:
 		n.Args = list
 	case *ir.ReturnStmt:
 		n.Results = list
+	case *ir.AssignListStmt:
+		if n.Op() != ir.OAS2FUNC {
+			base.Fatalf("rewriteMultiValueCall: invalid op %v", n.Op())
+		}
+		as.SetOp(ir.OAS2FUNC)
+		n.SetOp(ir.OAS2)
+		n.Rhs = make([]ir.Node, len(list))
+		for i, tmp := range list {
+			n.Rhs[i] = AssignConv(tmp, n.Lhs[i].Type(), "assignment")
+		}
 	}
-
-	n.PtrInit().Append(Stmt(as))
 }
 
 func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
@@ -1318,6 +1349,9 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 	n1 := tstruct.NumFields()
 	n2 := len(nl)
 	if !hasddd(tstruct) {
+		if isddd {
+			goto invalidddd
+		}
 		if n2 > n1 {
 			goto toomany
 		}
@@ -1383,6 +1417,8 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 	if i < len(nl) {
 		goto toomany
 	}
+
+invalidddd:
 	if isddd {
 		if call != nil {
 			base.Errorf("invalid use of ... in call to %v", call)
@@ -1924,6 +1960,35 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 	// are the same as for index expressions. Factor the code better;
 	// for instance, indexlit might be called here and incorporate some
 	// of the bounds checks done for make.
+	n = DefaultLit(n, types.Types[types.TINT])
+	*np = n
+
+	return true
+}
+
+// checkunsafeslice is like checkmake but for unsafe.Slice.
+func checkunsafeslice(np *ir.Node) bool {
+	n := *np
+	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
+		base.Errorf("non-integer len argument in unsafe.Slice - %v", n.Type())
+		return false
+	}
+
+	// Do range checks for constants before DefaultLit
+	// to avoid redundant "constant NNN overflows int" errors.
+	if n.Op() == ir.OLITERAL {
+		v := toint(n.Val())
+		if constant.Sign(v) < 0 {
+			base.Errorf("negative len argument in unsafe.Slice")
+			return false
+		}
+		if ir.ConstOverflow(v, types.Types[types.TINT]) {
+			base.Errorf("len argument too large in unsafe.Slice")
+			return false
+		}
+	}
+
+	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
 	n = DefaultLit(n, types.Types[types.TINT])
 	*np = n
 
