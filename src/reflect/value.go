@@ -1381,10 +1381,16 @@ func valueInterface(v Value, safe bool) interface{} {
 	return packEface(v)
 }
 
-// InterfaceData returns the interface v's value as a uintptr pair.
+// InterfaceData returns a pair of unspecified uintptr values.
 // It panics if v's Kind is not Interface.
+//
+// In earlier versions of Go, this function returned the interface's
+// value as a uintptr pair. As of Go 1.4, the implementation of
+// interface values precludes any defined use of InterfaceData.
+//
+// Deprecated: The memory representation of interface values is not
+// compatible with InterfaceData.
 func (v Value) InterfaceData() [2]uintptr {
-	// TODO: deprecate this
 	v.mustBe(Interface)
 	// We treat this as a read operation, so we allow
 	// it even for unexported data, because the caller
@@ -2803,6 +2809,26 @@ func (v Value) Convert(t Type) Value {
 		panic("reflect.Value.Convert: value of type " + v.typ.String() + " cannot be converted to type " + t.String())
 	}
 	return op(v, t)
+}
+
+// CanConvert reports whether the value v can be converted to type t.
+// If v.CanConvert(t) returns true then v.Convert(t) will not panic.
+func (v Value) CanConvert(t Type) bool {
+	vt := v.Type()
+	if !vt.ConvertibleTo(t) {
+		return false
+	}
+	// Currently the only conversion that is OK in terms of type
+	// but that can panic depending on the value is converting
+	// from slice to pointer-to-array.
+	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
+		n := t.Elem().Len()
+		h := (*unsafeheader.Slice)(v.ptr)
+		if n > h.Len {
+			return false
+		}
+	}
+	return true
 }
 
 // convertOp returns the function to convert a value of type src
