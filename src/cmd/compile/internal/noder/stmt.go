@@ -5,6 +5,7 @@
 package noder
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
@@ -27,6 +28,7 @@ func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
 }
 
 func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+	base.Assert(g.exprStmtOK)
 	switch stmt := stmt.(type) {
 	case nil, *syntax.EmptyStmt:
 		return nil
@@ -35,11 +37,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 	case *syntax.BlockStmt:
 		return ir.NewBlockStmt(g.pos(stmt), g.blockStmt(stmt))
 	case *syntax.ExprStmt:
-		x := g.expr(stmt.X)
-		if call, ok := x.(*ir.CallExpr); ok {
-			call.Use = ir.CallUseStmt
-		}
-		return x
+		return wrapname(g.pos(stmt.X), g.expr(stmt.X))
 	case *syntax.SendStmt:
 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
 		if n.Chan.Type().HasTParam() || n.Value.Type().HasTParam() {
@@ -52,7 +50,9 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		n.SetTypecheck(1)
 		return n
 	case *syntax.DeclStmt:
-		return ir.NewBlockStmt(g.pos(stmt), g.decls(stmt.DeclList))
+		n := ir.NewBlockStmt(g.pos(stmt), nil)
+		g.decls(&n.List, stmt.DeclList)
+		return n
 
 	case *syntax.AssignStmt:
 		if stmt.Op != 0 && stmt.Op != syntax.Def {
@@ -61,7 +61,10 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 			if stmt.Rhs == nil {
 				n = IncDec(g.pos(stmt), op, g.expr(stmt.Lhs))
 			} else {
-				n = ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs))
+				// Eval rhs before lhs, for compatibility with noder1
+				rhs := g.expr(stmt.Rhs)
+				lhs := g.expr(stmt.Lhs)
+				n = ir.NewAssignOpStmt(g.pos(stmt), op, lhs, rhs)
 			}
 			if n.X.Typecheck() == 3 {
 				n.SetTypecheck(3)
@@ -72,21 +75,22 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 			return n
 		}
 
-		names, lhs := g.assignList(stmt.Lhs, stmt.Op == syntax.Def)
+		// Eval rhs before lhs, for compatibility with noder1
 		rhs := g.exprList(stmt.Rhs)
+		names, lhs := g.assignList(stmt.Lhs, stmt.Op == syntax.Def)
 
 		// We must delay transforming the assign statement if any of the
 		// lhs or rhs nodes are also delayed, since transformAssign needs
 		// to know the types of the left and right sides in various cases.
 		delay := false
 		for _, e := range lhs {
-			if e.Typecheck() == 3 {
+			if e.Type().HasTParam() || e.Typecheck() == 3 {
 				delay = true
 				break
 			}
 		}
 		for _, e := range rhs {
-			if e.Typecheck() == 3 {
+			if e.Type().HasTParam() || e.Typecheck() == 3 {
 				delay = true
 				break
 			}
@@ -141,8 +145,20 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		return g.forStmt(stmt)
 	case *syntax.SelectStmt:
 		n := g.selectStmt(stmt)
-		transformSelect(n.(*ir.SelectStmt))
-		n.SetTypecheck(1)
+
+		delay := false
+		for _, ncase := range n.(*ir.SelectStmt).Cases {
+			if ncase.Comm != nil && ncase.Comm.Typecheck() == 3 {
+				delay = true
+				break
+			}
+		}
+		if delay {
+			n.SetTypecheck(3)
+		} else {
+			transformSelect(n.(*ir.SelectStmt))
+			n.SetTypecheck(1)
+		}
 		return n
 	case *syntax.SwitchStmt:
 		return g.switchStmt(stmt)
@@ -266,6 +282,12 @@ func (g *irgen) forStmt(stmt *syntax.ForStmt) ir.Node {
 		key, value := unpackTwo(lhs)
 		n := ir.NewRangeStmt(g.pos(r), key, value, g.expr(r.X), g.blockStmt(stmt.Body))
 		n.Def = initDefn(n, names)
+		if key != nil {
+			transformCheckAssign(n, key)
+		}
+		if value != nil {
+			transformCheckAssign(n, value)
+		}
 		return n
 	}
 
@@ -311,6 +333,8 @@ func (g *irgen) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 		if obj, ok := g.info.Implicits[clause]; ok {
 			cv = g.obj(obj)
 			cv.SetPos(g.makeXPos(clause.Colon))
+			assert(expr.Op() == ir.OTYPESW)
+			cv.Defn = expr
 		}
 		body[i] = ir.NewCaseStmt(g.pos(clause), g.exprList(clause.Cases), g.stmts(clause.Body))
 		body[i].Var = cv

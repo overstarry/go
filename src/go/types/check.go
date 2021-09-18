@@ -73,7 +73,7 @@ type importKey struct {
 // A dotImportKey describes a dot-imported object in the given scope.
 type dotImportKey struct {
 	scope *Scope
-	obj   Object
+	name  string
 }
 
 // A Checker maintains the state of the type checker.
@@ -85,11 +85,10 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	version version                    // accepted language version
-	objMap  map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
-	impMap  map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
-	posMap  map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
-	typMap  map[string]*Named          // maps an instantiated named type hash to a *Named type
+	version version                // accepted language version
+	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -174,14 +173,19 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		conf = new(Config)
 	}
 
+	// make sure we have an environment
+	if conf.Environment == nil {
+		conf.Environment = NewEnvironment()
+	}
+
 	// make sure we have an info struct
 	if info == nil {
 		info = new(Info)
 	}
 
-	version, err := parseGoVersion(conf.goVersion)
+	version, err := parseGoVersion(conf.GoVersion)
 	if err != nil {
-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.goVersion, err))
+		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
 	}
 
 	return &Checker{
@@ -192,8 +196,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		version: version,
 		objMap:  make(map[Object]*declInfo),
 		impMap:  make(map[importKey]*Package),
-		posMap:  make(map[*Interface][]token.Pos),
-		typMap:  make(map[string]*Named),
 	}
 }
 
@@ -273,10 +275,6 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	}
 
 	check.recordUntyped()
-
-	if check.Info != nil {
-		sanitizeInfo(check.Info)
-	}
 
 	check.pkg.complete = true
 
@@ -411,8 +409,8 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 func (check *Checker) recordInferred(call ast.Expr, targs []Type, sig *Signature) {
 	assert(call != nil)
 	assert(sig != nil)
-	if m := getInferred(check.Info); m != nil {
-		m[call] = _Inferred{targs, sig}
+	if m := check.Inferred; m != nil {
+		m[call] = Inferred{NewTypeList(targs), sig}
 	}
 }
 
