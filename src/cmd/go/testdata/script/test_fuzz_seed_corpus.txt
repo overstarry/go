@@ -1,8 +1,9 @@
 # TODO(jayconrod): support shared memory on more platforms.
 [!darwin] [!linux] [!windows] skip
 
-# TODO(#48504): fix and re-enable.
-[linux] [386] skip
+# Instrumentation not supported on other archs.
+# See #14565.
+[!amd64] [!arm64] skip
 
 [short] skip
 env GOCACHE=$WORK/cache
@@ -25,6 +26,7 @@ stdout ok
 ! go test -fuzz=FuzzWithTestdata -run=FuzzWithTestdata -fuzztime=1x
 ! stdout ^ok
 ! stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
+stdout 'found a crash while testing seed corpus entry: FuzzWithTestdata/1'
 stdout FAIL
 
 # Test that fuzzing a target with no seed corpus or cache finds a crash, prints
