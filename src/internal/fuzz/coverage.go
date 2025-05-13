@@ -9,13 +9,11 @@ import (
 	"math/bits"
 )
 
-// ResetCovereage sets all of the counters for each edge of the instrumented
+// ResetCoverage sets all of the counters for each edge of the instrumented
 // source code to 0.
 func ResetCoverage() {
 	cov := coverage()
-	for i := range cov {
-		cov[i] = 0
-	}
+	clear(cov)
 }
 
 // SnapshotCoverage copies the current counter values into coverageSnapshot,
@@ -25,11 +23,7 @@ func ResetCoverage() {
 func SnapshotCoverage() {
 	cov := coverage()
 	for i, b := range cov {
-		b |= b >> 1
-		b |= b >> 2
-		b |= b >> 4
-		b -= b >> 1
-		coverageSnapshot[i] = b
+		coverageSnapshot[i] = pow2Table[b]
 	}
 }
 
@@ -66,6 +60,17 @@ func countNewCoverageBits(base, snapshot []byte) int {
 	return n
 }
 
+// isCoverageSubset returns true if all the base coverage bits are set in
+// snapshot.
+func isCoverageSubset(base, snapshot []byte) bool {
+	for i, v := range base {
+		if v&snapshot[i] != v {
+			return false
+		}
+	}
+	return true
+}
+
 // hasCoverageBit returns true if snapshot has at least one bit set that is
 // also set in base.
 func hasCoverageBit(base, snapshot []byte) bool {
@@ -93,4 +98,18 @@ var (
 	// the 8-bit coverage counters reside in memory. They're known to cmd/link,
 	// which specially assigns their addresses for this purpose.
 	_counters, _ecounters [0]byte
+
+	// lookup table for faster power of two rounding
+	pow2Table [256]byte
 )
+
+func init() {
+	for i := range pow2Table {
+		b := byte(i)
+		b |= b >> 1
+		b |= b >> 2
+		b |= b >> 4
+		b -= b >> 1
+		pow2Table[i] = b
+	}
+}

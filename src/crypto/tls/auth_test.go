@@ -6,6 +6,7 @@ package tls
 
 import (
 	"crypto"
+	"crypto/tls/internal/fips140tls"
 	"testing"
 )
 
@@ -57,6 +58,11 @@ func TestSignatureSelection(t *testing.T) {
 	}
 
 	for testNo, test := range tests {
+		if fips140tls.Required() && (test.expectedHash == crypto.SHA1 || test.expectedSigAlg == Ed25519) {
+			t.Logf("skipping test[%d] - not compatible with TLS FIPS mode", testNo)
+			continue
+		}
+
 		sigAlg, err := selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs)
 		if err != nil {
 			t.Errorf("test[%d]: unexpected selectSignatureScheme error: %v", testNo, err)
@@ -153,7 +159,7 @@ func TestLegacyTypeAndHash(t *testing.T) {
 // TestSupportedSignatureAlgorithms checks that all supportedSignatureAlgorithms
 // have valid type and hash information.
 func TestSupportedSignatureAlgorithms(t *testing.T) {
-	for _, sigAlg := range supportedSignatureAlgorithms {
+	for _, sigAlg := range supportedSignatureAlgorithms() {
 		sigType, hash, err := typeAndHashFromSignatureScheme(sigAlg)
 		if err != nil {
 			t.Errorf("%v: unexpected error: %v", sigAlg, err)

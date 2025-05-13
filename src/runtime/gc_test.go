@@ -6,18 +6,22 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/asan"
+	"internal/testenv"
+	"math/bits"
 	"math/rand"
 	"os"
 	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
+	"weak"
 )
 
 func TestGcSys(t *testing.T) {
@@ -207,6 +211,9 @@ func TestGcZombieReporting(t *testing.T) {
 }
 
 func TestGCTestMoveStackOnNextCall(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations with -asan causes this to fail; see #70079")
+	}
 	t.Parallel()
 	var onStack int
 	// GCTestMoveStackOnNextCall can fail in rare cases if there's
@@ -278,16 +285,28 @@ func TestGCTestIsReachable(t *testing.T) {
 	}
 
 	got := runtime.GCTestIsReachable(all...)
-	if want != got {
-		t.Fatalf("did not get expected reachable set; want %b, got %b", want, got)
+	if got&want != want {
+		// This is a serious bug - an object is live (due to the KeepAlive
+		// call below), but isn't reported as such.
+		t.Fatalf("live object not in reachable set; want %b, got %b", want, got)
+	}
+	if bits.OnesCount64(got&^want) > 1 {
+		// Note: we can occasionally have a value that is retained even though
+		// it isn't live, due to conservative scanning of stack frames.
+		// See issue 67204. For now, we allow a "slop" of 1 unintentionally
+		// retained object.
+		t.Fatalf("dead object in reachable set; want %b, got %b", want, got)
 	}
 	runtime.KeepAlive(half)
 }
 
-var pointerClassSink *int
+var pointerClassBSS *int
 var pointerClassData = 42
 
 func TestGCTestPointerClass(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations cause this test to fail; see #70079")
+	}
 	t.Parallel()
 	check := func(p unsafe.Pointer, want string) {
 		t.Helper()
@@ -300,174 +319,11 @@ func TestGCTestPointerClass(t *testing.T) {
 	}
 	var onStack int
 	var notOnStack int
-	pointerClassSink = &notOnStack
 	check(unsafe.Pointer(&onStack), "stack")
-	check(unsafe.Pointer(&notOnStack), "heap")
-	check(unsafe.Pointer(&pointerClassSink), "bss")
+	check(unsafe.Pointer(runtime.Escape(&notOnStack)), "heap")
+	check(unsafe.Pointer(&pointerClassBSS), "bss")
 	check(unsafe.Pointer(&pointerClassData), "data")
 	check(nil, "other")
-}
-
-func BenchmarkSetTypePtr(b *testing.B) {
-	benchSetType(b, new(*byte))
-}
-
-func BenchmarkSetTypePtr8(b *testing.B) {
-	benchSetType(b, new([8]*byte))
-}
-
-func BenchmarkSetTypePtr16(b *testing.B) {
-	benchSetType(b, new([16]*byte))
-}
-
-func BenchmarkSetTypePtr32(b *testing.B) {
-	benchSetType(b, new([32]*byte))
-}
-
-func BenchmarkSetTypePtr64(b *testing.B) {
-	benchSetType(b, new([64]*byte))
-}
-
-func BenchmarkSetTypePtr126(b *testing.B) {
-	benchSetType(b, new([126]*byte))
-}
-
-func BenchmarkSetTypePtr128(b *testing.B) {
-	benchSetType(b, new([128]*byte))
-}
-
-func BenchmarkSetTypePtrSlice(b *testing.B) {
-	benchSetType(b, make([]*byte, 1<<10))
-}
-
-type Node1 struct {
-	Value       [1]uintptr
-	Left, Right *byte
-}
-
-func BenchmarkSetTypeNode1(b *testing.B) {
-	benchSetType(b, new(Node1))
-}
-
-func BenchmarkSetTypeNode1Slice(b *testing.B) {
-	benchSetType(b, make([]Node1, 32))
-}
-
-type Node8 struct {
-	Value       [8]uintptr
-	Left, Right *byte
-}
-
-func BenchmarkSetTypeNode8(b *testing.B) {
-	benchSetType(b, new(Node8))
-}
-
-func BenchmarkSetTypeNode8Slice(b *testing.B) {
-	benchSetType(b, make([]Node8, 32))
-}
-
-type Node64 struct {
-	Value       [64]uintptr
-	Left, Right *byte
-}
-
-func BenchmarkSetTypeNode64(b *testing.B) {
-	benchSetType(b, new(Node64))
-}
-
-func BenchmarkSetTypeNode64Slice(b *testing.B) {
-	benchSetType(b, make([]Node64, 32))
-}
-
-type Node64Dead struct {
-	Left, Right *byte
-	Value       [64]uintptr
-}
-
-func BenchmarkSetTypeNode64Dead(b *testing.B) {
-	benchSetType(b, new(Node64Dead))
-}
-
-func BenchmarkSetTypeNode64DeadSlice(b *testing.B) {
-	benchSetType(b, make([]Node64Dead, 32))
-}
-
-type Node124 struct {
-	Value       [124]uintptr
-	Left, Right *byte
-}
-
-func BenchmarkSetTypeNode124(b *testing.B) {
-	benchSetType(b, new(Node124))
-}
-
-func BenchmarkSetTypeNode124Slice(b *testing.B) {
-	benchSetType(b, make([]Node124, 32))
-}
-
-type Node126 struct {
-	Value       [126]uintptr
-	Left, Right *byte
-}
-
-func BenchmarkSetTypeNode126(b *testing.B) {
-	benchSetType(b, new(Node126))
-}
-
-func BenchmarkSetTypeNode126Slice(b *testing.B) {
-	benchSetType(b, make([]Node126, 32))
-}
-
-type Node128 struct {
-	Value       [128]uintptr
-	Left, Right *byte
-}
-
-func BenchmarkSetTypeNode128(b *testing.B) {
-	benchSetType(b, new(Node128))
-}
-
-func BenchmarkSetTypeNode128Slice(b *testing.B) {
-	benchSetType(b, make([]Node128, 32))
-}
-
-type Node130 struct {
-	Value       [130]uintptr
-	Left, Right *byte
-}
-
-func BenchmarkSetTypeNode130(b *testing.B) {
-	benchSetType(b, new(Node130))
-}
-
-func BenchmarkSetTypeNode130Slice(b *testing.B) {
-	benchSetType(b, make([]Node130, 32))
-}
-
-type Node1024 struct {
-	Value       [1024]uintptr
-	Left, Right *byte
-}
-
-func BenchmarkSetTypeNode1024(b *testing.B) {
-	benchSetType(b, new(Node1024))
-}
-
-func BenchmarkSetTypeNode1024Slice(b *testing.B) {
-	benchSetType(b, make([]Node1024, 32))
-}
-
-func benchSetType(b *testing.B, x any) {
-	v := reflect.ValueOf(x)
-	t := v.Type()
-	switch t.Kind() {
-	case reflect.Pointer:
-		b.SetBytes(int64(t.Elem().Size()))
-	case reflect.Slice:
-		b.SetBytes(int64(t.Elem().Size()) * int64(v.Len()))
-	}
-	b.ResetTimer()
-	runtime.BenchSetType(b.N, x)
 }
 
 func BenchmarkAllocation(b *testing.B) {
@@ -574,6 +430,11 @@ func TestPageAccounting(t *testing.T) {
 	}
 }
 
+func init() {
+	// Enable ReadMemStats' double-check mode.
+	*runtime.DoubleCheckReadMemStats = true
+}
+
 func TestReadMemStats(t *testing.T) {
 	base, slow := runtime.ReadMemStatsSlow()
 	if base != slow {
@@ -614,14 +475,13 @@ func BenchmarkReadMemStats(b *testing.B) {
 	for i := range x {
 		x[i] = new([1024]byte)
 	}
-	hugeSink = x
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		runtime.ReadMemStats(&ms)
 	}
 
-	hugeSink = nil
+	runtime.KeepAlive(x)
 }
 
 func applyGCLoad(b *testing.B) func() {
@@ -691,7 +551,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 		time.Sleep(100 * time.Millisecond)
 		start := time.Now()
 		runtime.ReadMemStats(&ms)
-		latencies = append(latencies, time.Now().Sub(start))
+		latencies = append(latencies, time.Since(start))
 	}
 	// Make sure to stop the timer before we wait! The load created above
 	// is very heavy-weight and not easy to stop, so we could end up
@@ -707,9 +567,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 	b.ReportMetric(0, "allocs/op")
 
 	// Sort latencies then report percentiles.
-	sort.Slice(latencies, func(i, j int) bool {
-		return latencies[i] < latencies[j]
-	})
+	slices.Sort(latencies)
 	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
@@ -885,7 +743,7 @@ func BenchmarkMSpanCountAlloc(b *testing.B) {
 	// always rounded up 8 bytes.
 	for _, n := range []int{8, 16, 32, 64, 128} {
 		b.Run(fmt.Sprintf("bits=%d", n*8), func(b *testing.B) {
-			// Initialize a new byte slice with pseduo-random data.
+			// Initialize a new byte slice with pseudo-random data.
 			bits := make([]byte, n)
 			rand.Read(bits)
 
@@ -905,4 +763,308 @@ func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
 	}
 	*n--
 	countpwg(n, ready, teardown)
+}
+
+func TestMemoryLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("stress test that takes time to run")
+	}
+	if runtime.NumCPU() < 4 {
+		t.Skip("want at least 4 CPUs for this test")
+	}
+	got := runTestProg(t, "testprog", "GCMemoryLimit")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestMemoryLimitNoGCPercent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("stress test that takes time to run")
+	}
+	if runtime.NumCPU() < 4 {
+		t.Skip("want at least 4 CPUs for this test")
+	}
+	got := runTestProg(t, "testprog", "GCMemoryLimitNoGCPercent")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestMyGenericFunc(t *testing.T) {
+	runtime.MyGenericFunc[int]()
+}
+
+func TestWeakToStrongMarkTermination(t *testing.T) {
+	testenv.MustHaveParallelism(t)
+
+	type T struct {
+		a *int
+		b int
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	w := make([]weak.Pointer[T], 2048)
+
+	// Make sure there's no out-standing GC from a previous test.
+	runtime.GC()
+
+	// Create many objects with a weak pointers to them.
+	for i := range w {
+		x := new(T)
+		x.a = new(int)
+		w[i] = weak.Make(x)
+	}
+
+	// Reset the restart flag.
+	runtime.GCMarkDoneResetRestartFlag()
+
+	// Prevent mark termination from completing.
+	runtime.SetSpinInGCMarkDone(true)
+
+	// Start a GC, and wait a little bit to get something spinning in mark termination.
+	// Simultaneously, fire off another goroutine to disable spinning. If everything's
+	// working correctly, then weak.Value will block, so we need to make sure something
+	// prevents the GC from continuing to spin.
+	done := make(chan struct{})
+	go func() {
+		runtime.GC()
+		done <- struct{}{}
+	}()
+	go func() {
+		// Usleep here instead of time.Sleep. time.Sleep
+		// can allocate, and if we get unlucky, then it
+		// can end up stuck in gcMarkDone with nothing to
+		// wake it.
+		runtime.Usleep(100000) // 100ms
+
+		// Let mark termination continue.
+		runtime.SetSpinInGCMarkDone(false)
+	}()
+	time.Sleep(10 * time.Millisecond)
+
+	// Perform many weak->strong conversions in the critical window.
+	var wg sync.WaitGroup
+	for _, wp := range w {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			wp.Value()
+		}()
+	}
+
+	// Make sure the GC completes.
+	<-done
+
+	// Make sure all the weak->strong conversions finish.
+	wg.Wait()
+
+	// The bug is triggered if there's still mark work after gcMarkDone stops the world.
+	//
+	// This can manifest in one of two ways today:
+	// - An exceedingly rare crash in mark termination.
+	// - gcMarkDone restarts, as if issue #27993 is at play.
+	//
+	// Check for the latter. This is a fairly controlled environment, so #27993 is very
+	// unlikely to happen (it's already rare to begin with) but we'll always _appear_ to
+	// trigger the same bug if weak->strong conversions aren't properly coordinated with
+	// mark termination.
+	if runtime.GCMarkDoneRestarted() {
+		t.Errorf("gcMarkDone restarted")
+	}
+}
+
+func TestMSpanQueue(t *testing.T) {
+	expectSize := func(t *testing.T, q *runtime.MSpanQueue, want int) {
+		t.Helper()
+		if got := q.Size(); got != want {
+			t.Errorf("expected size %d, got %d", want, got)
+		}
+	}
+	expectMSpan := func(t *testing.T, got, want *runtime.MSpan, op string) {
+		t.Helper()
+		if got != want {
+			t.Errorf("expected mspan %p from %s, got %p", want, op, got)
+		}
+	}
+	makeSpans := func(t *testing.T, n int) ([]*runtime.MSpan, func()) {
+		t.Helper()
+		spans := make([]*runtime.MSpan, 0, n)
+		for range cap(spans) {
+			spans = append(spans, runtime.AllocMSpan())
+		}
+		return spans, func() {
+			for i, s := range spans {
+				runtime.FreeMSpan(s)
+				spans[i] = nil
+			}
+		}
+	}
+	t.Run("Empty", func(t *testing.T) {
+		var q runtime.MSpanQueue
+		expectSize(t, &q, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+	})
+	t.Run("PushPop", func(t *testing.T) {
+		s := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s)
+
+		var q runtime.MSpanQueue
+		q.Push(s)
+		expectSize(t, &q, 1)
+		expectMSpan(t, q.Pop(), s, "pop")
+		expectMSpan(t, q.Pop(), nil, "pop")
+	})
+	t.Run("PushPopPushPop", func(t *testing.T) {
+		s0 := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s0)
+		s1 := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s1)
+
+		var q runtime.MSpanQueue
+
+		// Push and pop s0.
+		q.Push(s0)
+		expectSize(t, &q, 1)
+		expectMSpan(t, q.Pop(), s0, "pop")
+		expectMSpan(t, q.Pop(), nil, "pop")
+
+		// Push and pop s1.
+		q.Push(s1)
+		expectSize(t, &q, 1)
+		expectMSpan(t, q.Pop(), s1, "pop")
+		expectMSpan(t, q.Pop(), nil, "pop")
+	})
+	t.Run("PushPushPopPop", func(t *testing.T) {
+		s0 := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s0)
+		s1 := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s1)
+
+		var q runtime.MSpanQueue
+		q.Push(s0)
+		expectSize(t, &q, 1)
+		q.Push(s1)
+		expectSize(t, &q, 2)
+		expectMSpan(t, q.Pop(), s0, "pop")
+		expectMSpan(t, q.Pop(), s1, "pop")
+		expectMSpan(t, q.Pop(), nil, "pop")
+	})
+	t.Run("EmptyTakeAll", func(t *testing.T) {
+		var q runtime.MSpanQueue
+		var p runtime.MSpanQueue
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 0)
+		p.TakeAll(&q)
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4TakeAll", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+
+		var p runtime.MSpanQueue
+		p.TakeAll(&q)
+		expectSize(t, &p, 4)
+		for i := range p.Size() {
+			expectMSpan(t, p.Pop(), spans[i], "pop")
+		}
+		expectSize(t, &p, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4Pop3", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+		p := q.PopN(3)
+		expectSize(t, &p, 3)
+		expectSize(t, &q, 1)
+		for i := range p.Size() {
+			expectMSpan(t, p.Pop(), spans[i], "pop")
+		}
+		expectMSpan(t, q.Pop(), spans[len(spans)-1], "pop")
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4Pop0", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+		p := q.PopN(0)
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 4)
+		for i := range q.Size() {
+			expectMSpan(t, q.Pop(), spans[i], "pop")
+		}
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4Pop4", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+		p := q.PopN(4)
+		expectSize(t, &p, 4)
+		expectSize(t, &q, 0)
+		for i := range p.Size() {
+			expectMSpan(t, p.Pop(), spans[i], "pop")
+		}
+		expectSize(t, &p, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4Pop5", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+		p := q.PopN(5)
+		expectSize(t, &p, 4)
+		expectSize(t, &q, 0)
+		for i := range p.Size() {
+			expectMSpan(t, p.Pop(), spans[i], "pop")
+		}
+		expectSize(t, &p, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
 }

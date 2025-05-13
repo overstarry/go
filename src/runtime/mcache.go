@@ -5,7 +5,9 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
+	"internal/runtime/gc"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -15,13 +17,14 @@ import (
 //
 // mcaches are allocated from non-GC'd memory, so any heap pointers
 // must be specially handled.
-//
-//go:notinheap
 type mcache struct {
+	_ sys.NotInHeap
+
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
-	nextSample uintptr // trigger heap sample after allocating this many bytes
-	scanAlloc  uintptr // bytes of scannable heap allocated
+	nextSample  int64   // trigger heap sample after allocating this many bytes
+	memProfRate int     // cached mem profile rate, used to detect changes
+	scanAlloc   uintptr // bytes of scannable heap allocated
 
 	// Allocator cache for tiny objects w/o pointers.
 	// See "Tiny allocator" comment in malloc.go.
@@ -49,7 +52,7 @@ type mcache struct {
 	// was last flushed. If flushGen != mheap_.sweepgen, the spans
 	// in this mcache are stale and need to the flushed so they
 	// can be swept. This is done in acquirep.
-	flushGen uint32
+	flushGen atomic.Uint32
 }
 
 // A gclink is a node in a linked list of blocks, like mlink,
@@ -86,7 +89,7 @@ func allocmcache() *mcache {
 	systemstack(func() {
 		lock(&mheap_.lock)
 		c = (*mcache)(mheap_.cachealloc.alloc())
-		c.flushGen = mheap_.sweepgen
+		c.flushGen.Store(mheap_.sweepgen)
 		unlock(&mheap_.lock)
 	})
 	for i := range c.alloc {
@@ -147,7 +150,7 @@ func (c *mcache) refill(spc spanClass) {
 	// Return the current cached span to the central lists.
 	s := c.alloc[spc]
 
-	if uintptr(s.allocCount) != s.nelems {
+	if s.allocCount != s.nelems {
 		throw("refill of span with free space remaining")
 	}
 	if s != &emptymspan {
@@ -156,6 +159,25 @@ func (c *mcache) refill(spc spanClass) {
 			throw("bad sweepgen in refill")
 		}
 		mheap_.central[spc].mcentral.uncacheSpan(s)
+
+		// Count up how many slots were used and record it.
+		stats := memstats.heapStats.acquire()
+		slotsUsed := int64(s.allocCount) - int64(s.allocCountBeforeCache)
+		atomic.Xadd64(&stats.smallAllocCount[spc.sizeclass()], slotsUsed)
+
+		// Flush tinyAllocs.
+		if spc == tinySpanClass {
+			atomic.Xadd64(&stats.tinyAllocCount, int64(c.tinyAllocs))
+			c.tinyAllocs = 0
+		}
+		memstats.heapStats.release()
+
+		// Count the allocs in inconsistent, internal stats.
+		bytesAllocated := slotsUsed * int64(s.elemsize)
+		gcController.totalAlloc.Add(bytesAllocated)
+
+		// Clear the second allocCount just to be safe.
+		s.allocCountBeforeCache = 0
 	}
 
 	// Get a new cached span from the central lists.
@@ -164,7 +186,7 @@ func (c *mcache) refill(spc spanClass) {
 		throw("out of memory")
 	}
 
-	if uintptr(s.allocCount) == s.nelems {
+	if s.allocCount == s.nelems {
 		throw("span has no free space")
 	}
 
@@ -172,21 +194,22 @@ func (c *mcache) refill(spc spanClass) {
 	// sweeping in the next sweep phase.
 	s.sweepgen = mheap_.sweepgen + 3
 
-	// Assume all objects from this span will be allocated in the
-	// mcache. If it gets uncached, we'll adjust this.
-	stats := memstats.heapStats.acquire()
-	atomic.Xadduintptr(&stats.smallAllocCount[spc.sizeclass()], uintptr(s.nelems)-uintptr(s.allocCount))
+	// Store the current alloc count for accounting later.
+	s.allocCountBeforeCache = s.allocCount
 
-	// Flush tinyAllocs.
-	if spc == tinySpanClass {
-		atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
-		c.tinyAllocs = 0
-	}
-	memstats.heapStats.release()
-
-	// Update heapLive with the same assumption.
-	// While we're here, flush scanAlloc, since we have to call
-	// revise anyway.
+	// Update heapLive and flush scanAlloc.
+	//
+	// We have not yet allocated anything new into the span, but we
+	// assume that all of its slots will get used, so this makes
+	// heapLive an overestimate.
+	//
+	// When the span gets uncached, we'll fix up this overestimate
+	// if necessary (see releaseAll).
+	//
+	// We pick an overestimate here because an underestimate leads
+	// the pacer to believe that it's in better shape than it is,
+	// which appears to lead to more memory used. See #53738 for
+	// more details.
 	usedBytes := uintptr(s.allocCount) * s.elemsize
 	gcController.update(int64(s.npages*pageSize)-int64(usedBytes), int64(c.scanAlloc))
 	c.scanAlloc = 0
@@ -196,28 +219,33 @@ func (c *mcache) refill(spc spanClass) {
 
 // allocLarge allocates a span for a large object.
 func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
-	if size+_PageSize < size {
+	if size+pageSize < size {
 		throw("out of memory")
 	}
-	npages := size >> _PageShift
-	if size&_PageMask != 0 {
+	npages := size >> gc.PageShift
+	if size&pageMask != 0 {
 		npages++
 	}
 
 	// Deduct credit for this span allocation and sweep if
 	// necessary. mHeap_Alloc will also sweep npages, so this only
 	// pays the debt down to npage pages.
-	deductSweepCredit(npages*_PageSize, npages)
+	deductSweepCredit(npages*pageSize, npages)
 
 	spc := makeSpanClass(0, noscan)
 	s := mheap_.alloc(npages, spc)
 	if s == nil {
 		throw("out of memory")
 	}
+
+	// Count the alloc in consistent, external stats.
 	stats := memstats.heapStats.acquire()
-	atomic.Xadduintptr(&stats.largeAlloc, npages*pageSize)
-	atomic.Xadduintptr(&stats.largeAllocCount, 1)
+	atomic.Xadd64(&stats.largeAlloc, int64(npages*pageSize))
+	atomic.Xadd64(&stats.largeAllocCount, 1)
 	memstats.heapStats.release()
+
+	// Count the alloc in inconsistent, internal stats.
+	gcController.totalAlloc.Add(int64(npages * pageSize))
 
 	// Update heapLive.
 	gcController.update(int64(s.npages*pageSize), 0)
@@ -226,7 +254,7 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 	// visible to the background sweeper.
 	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
 	s.limit = s.base() + size
-	heapBitsForAddr(s.base()).initSpan(s)
+	s.initHeapBits()
 	return s
 }
 
@@ -240,21 +268,27 @@ func (c *mcache) releaseAll() {
 	for i := range c.alloc {
 		s := c.alloc[i]
 		if s != &emptymspan {
-			// Adjust nsmallalloc in case the span wasn't fully allocated.
-			n := uintptr(s.nelems) - uintptr(s.allocCount)
+			slotsUsed := int64(s.allocCount) - int64(s.allocCountBeforeCache)
+			s.allocCountBeforeCache = 0
+
+			// Adjust smallAllocCount for whatever was allocated.
 			stats := memstats.heapStats.acquire()
-			atomic.Xadduintptr(&stats.smallAllocCount[spanClass(i).sizeclass()], -n)
+			atomic.Xadd64(&stats.smallAllocCount[spanClass(i).sizeclass()], slotsUsed)
 			memstats.heapStats.release()
+
+			// Adjust the actual allocs in inconsistent, internal stats.
+			// We assumed earlier that the full span gets allocated.
+			gcController.totalAlloc.Add(slotsUsed * int64(s.elemsize))
+
 			if s.sweepgen != sg+1 {
 				// refill conservatively counted unallocated slots in gcController.heapLive.
 				// Undo this.
 				//
-				// If this span was cached before sweep, then
-				// gcController.heapLive was totally recomputed since
-				// caching this span, so we don't do this for
-				// stale spans.
-				dHeapLive -= int64(n) * int64(s.elemsize)
+				// If this span was cached before sweep, then gcController.heapLive was totally
+				// recomputed since caching this span, so we don't do this for stale spans.
+				dHeapLive -= int64(s.nelems-s.allocCount) * int64(s.elemsize)
 			}
+
 			// Release the span to the mcentral.
 			mheap_.central[i].mcentral.uncacheSpan(s)
 			c.alloc[i] = &emptymspan
@@ -266,11 +300,11 @@ func (c *mcache) releaseAll() {
 
 	// Flush tinyAllocs.
 	stats := memstats.heapStats.acquire()
-	atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+	atomic.Xadd64(&stats.tinyAllocCount, int64(c.tinyAllocs))
 	c.tinyAllocs = 0
 	memstats.heapStats.release()
 
-	// Updated heapScan and heapLive.
+	// Update heapLive and heapScan.
 	gcController.update(dHeapLive, scanAlloc)
 }
 
@@ -286,13 +320,14 @@ func (c *mcache) prepareForSweep() {
 	// allocate-black. However, with this approach it's difficult
 	// to avoid spilling mark bits into the *next* GC cycle.
 	sg := mheap_.sweepgen
-	if c.flushGen == sg {
+	flushGen := c.flushGen.Load()
+	if flushGen == sg {
 		return
-	} else if c.flushGen != sg-2 {
-		println("bad flushGen", c.flushGen, "in prepareForSweep; sweepgen", sg)
+	} else if flushGen != sg-2 {
+		println("bad flushGen", flushGen, "in prepareForSweep; sweepgen", sg)
 		throw("bad flushGen")
 	}
 	c.releaseAll()
 	stackcache_clear(c)
-	atomic.Store(&c.flushGen, mheap_.sweepgen) // Synchronizes with gcStart
+	c.flushGen.Store(mheap_.sweepgen) // Synchronizes with gcStart
 }

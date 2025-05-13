@@ -63,6 +63,31 @@ func TestMultiReader(t *testing.T) {
 	})
 }
 
+func TestMultiReaderAsWriterTo(t *testing.T) {
+	mr := MultiReader(
+		strings.NewReader("foo "),
+		MultiReader( // Tickle the buffer reusing codepath
+			strings.NewReader(""),
+			strings.NewReader("bar"),
+		),
+	)
+	mrAsWriterTo, ok := mr.(WriterTo)
+	if !ok {
+		t.Fatalf("expected cast to WriterTo to succeed")
+	}
+	sink := &strings.Builder{}
+	n, err := mrAsWriterTo.WriteTo(sink)
+	if err != nil {
+		t.Fatalf("expected no error; got %v", err)
+	}
+	if n != 7 {
+		t.Errorf("expected read 7 bytes; got %d", n)
+	}
+	if result := sink.String(); result != "foo bar" {
+		t.Errorf(`expected "foo bar"; got %q`, result)
+	}
+}
+
 func TestMultiWriter(t *testing.T) {
 	sink := new(bytes.Buffer)
 	// Hide bytes.Buffer's WriteString method:
@@ -203,7 +228,7 @@ func TestMultiReaderCopy(t *testing.T) {
 
 // Test that MultiWriter copies the input slice and is insulated from future modification.
 func TestMultiWriterCopy(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	slice := []Writer{&buf}
 	w := MultiWriter(slice...)
 	slice[0] = nil
@@ -307,9 +332,7 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 		buf1 := bytes.NewReader([]byte("foo"))
 		buf2 := bytes.NewReader([]byte("bar"))
 		mr = MultiReader(buf1, buf2)
-		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
-			close(closed)
-		})
+		runtime.AddCleanup(buf1, func(ch chan struct{}) { close(ch) }, closed)
 	}()
 
 	buf := make([]byte, 4)

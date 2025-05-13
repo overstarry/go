@@ -9,8 +9,11 @@ package goarch
 // per-arch information, including constants named $GOARCH for every
 // GOARCH. The constant is 1 on the current system, 0 otherwise; multiplying
 // by them is useful for defining GOARCH-specific constants.
+//
 //go:generate go run gengoarch.go
 
+// ArchFamilyType represents a family of one or more related architectures.
+// For example, ppc64 and ppc64le are both members of the PPC64 family.
 type ArchFamilyType int
 
 const (
@@ -18,6 +21,7 @@ const (
 	ARM
 	ARM64
 	I386
+	LOONG64
 	MIPS
 	MIPS64
 	PPC64

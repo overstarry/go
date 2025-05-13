@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go run -mod=mod mknode.go
+//go:generate go run mknode.go
 
 package ir
 
@@ -15,7 +15,7 @@ import (
 
 // A miniNode is a minimal node implementation,
 // meant to be embedded as the first field in a larger node implementation,
-// at a cost of 8 bytes.
+// at a cost of 12 bytes.
 //
 // A miniNode is NOT a valid Node by itself: the embedding struct
 // must at the least provide:
@@ -27,10 +27,9 @@ import (
 // The embedding struct should also fill in n.op in its constructor,
 // for more useful panic messages when invalid methods are called,
 // instead of implementing Op itself.
-//
 type miniNode struct {
-	pos  src.XPos // uint32
-	op   Op       // uint8
+	pos  src.XPos
+	op   Op
 	bits bitset8
 	esc  uint16
 }
@@ -54,10 +53,8 @@ func (n *miniNode) Esc() uint16       { return n.esc }
 func (n *miniNode) SetEsc(x uint16)   { n.esc = x }
 
 const (
-	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
-	miniTypecheckShift = 2
-	miniDiag           = 1 << 4
-	miniWalked         = 1 << 5 // to prevent/catch re-walking
+	miniTypecheckShift = 0
+	miniWalked         = 1 << 2 // to prevent/catch re-walking
 )
 
 func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
@@ -67,9 +64,6 @@ func (n *miniNode) SetTypecheck(x uint8) {
 	}
 	n.bits.set2(miniTypecheckShift, x)
 }
-
-func (n *miniNode) Diag() bool     { return n.bits&miniDiag != 0 }
-func (n *miniNode) SetDiag(x bool) { n.bits.set(miniDiag, x) }
 
 func (n *miniNode) Walked() bool     { return n.bits&miniWalked != 0 }
 func (n *miniNode) SetWalked(x bool) { n.bits.set(miniWalked, x) }

@@ -28,26 +28,26 @@ func TestSizeof(t *testing.T) {
 		{Tuple{}, 12, 24},
 		{Signature{}, 28, 56},
 		{Union{}, 12, 24},
-		{Interface{}, 44, 88},
+		{Interface{}, 40, 80},
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
-		{Named{}, 56, 104},
+		{Named{}, 60, 112},
 		{TypeParam{}, 28, 48},
 		{term{}, 12, 24},
 
 		// Objects
-		{PkgName{}, 64, 104},
+		{PkgName{}, 60, 96},
 		{Const{}, 64, 104},
 		{TypeName{}, 56, 88},
-		{Var{}, 60, 96},
-		{Func{}, 60, 96},
+		{Var{}, 64, 104},
+		{Func{}, 64, 104},
 		{Label{}, 60, 96},
 		{Builtin{}, 60, 96},
 		{Nil{}, 56, 88},
 
 		// Misc
 		{Scope{}, 60, 104},
-		{Package{}, 40, 80},
+		{Package{}, 44, 88},
 		{_TypeSet{}, 28, 56},
 	}
 

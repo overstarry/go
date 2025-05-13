@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"flag"
 	"fmt"
+	"internal/asan"
 	"internal/race"
 	"internal/testenv"
 	"os"
@@ -157,6 +158,9 @@ func TestTinyAlloc(t *testing.T) {
 	if runtime.Raceenabled {
 		t.Skip("tinyalloc suppressed when running in race mode")
 	}
+	if asan.Enabled {
+		t.Skip("tinyalloc suppressed when running in asan mode due to redzone")
+	}
 	const N = 16
 	var v [N]unsafe.Pointer
 	for i := range v {
@@ -173,12 +177,6 @@ func TestTinyAlloc(t *testing.T) {
 	}
 }
 
-var (
-	tinyByteSink   *byte
-	tinyUint32Sink *uint32
-	tinyObj12Sink  *obj12
-)
-
 type obj12 struct {
 	a uint64
 	b uint32
@@ -187,6 +185,9 @@ type obj12 struct {
 func TestTinyAllocIssue37262(t *testing.T) {
 	if runtime.Raceenabled {
 		t.Skip("tinyalloc suppressed when running in race mode")
+	}
+	if asan.Enabled {
+		t.Skip("tinyalloc suppressed when running in asan mode due to redzone")
 	}
 	// Try to cause an alignment access fault
 	// by atomically accessing the first 64-bit
@@ -205,8 +206,8 @@ func TestTinyAllocIssue37262(t *testing.T) {
 	// Make 1-byte allocations until we get a fresh tiny slot.
 	aligned := false
 	for i := 0; i < 16; i++ {
-		tinyByteSink = new(byte)
-		if uintptr(unsafe.Pointer(tinyByteSink))&0xf == 0xf {
+		x := runtime.Escape(new(byte))
+		if uintptr(unsafe.Pointer(x))&0xf == 0xf {
 			aligned = true
 			break
 		}
@@ -218,22 +219,17 @@ func TestTinyAllocIssue37262(t *testing.T) {
 
 	// Create a 4-byte object so that the current
 	// tiny slot is partially filled.
-	tinyUint32Sink = new(uint32)
+	runtime.Escape(new(uint32))
 
 	// Create a 12-byte object, which fits into the
 	// tiny slot. If it actually gets place there,
 	// then the field "a" will be improperly aligned
 	// for atomic access on 32-bit architectures.
 	// This won't be true if issue 36606 gets resolved.
-	tinyObj12Sink = new(obj12)
+	tinyObj12 := runtime.Escape(new(obj12))
 
 	// Try to atomically access "x.a".
-	atomic.StoreUint64(&tinyObj12Sink.a, 10)
-
-	// Clear the sinks.
-	tinyByteSink = nil
-	tinyUint32Sink = nil
-	tinyObj12Sink = nil
+	atomic.StoreUint64(&tinyObj12.a, 10)
 
 	runtime.Releasem()
 }
@@ -274,12 +270,10 @@ type acLink struct {
 var arenaCollisionSink []*acLink
 
 func TestArenaCollision(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	// Test that mheap.sysAlloc handles collisions with other
 	// memory mappings.
 	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestArenaCollision", "-test.v"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestArenaCollision$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_ARENA_COLLISION=1")
 		out, err := cmd.CombinedOutput()
 		if race.Enabled {
@@ -305,7 +299,11 @@ func TestArenaCollision(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		// Reserve memory at the next hint so it can't be used
 		// for the heap.
-		start, end := MapNextArenaHint()
+		start, end, ok := MapNextArenaHint()
+		if !ok {
+			t.Skipf("failed to reserve memory at next arena hint [%#x, %#x)", start, end)
+		}
+		t.Logf("reserved [%#x, %#x)", start, end)
 		disallowed = append(disallowed, [2]uintptr{start, end})
 		// Allocate until the runtime tries to use the hint we
 		// just mapped over.
@@ -325,46 +323,36 @@ func TestArenaCollision(t *testing.T) {
 	}
 }
 
-var mallocSink uintptr
-
 func BenchmarkMalloc8(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(int64)
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMalloc16(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new([2]int64)
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMallocTypeInfo8(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [8 / unsafe.Sizeof(uintptr(0))]*int
 		})
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMallocTypeInfo16(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [16 / unsafe.Sizeof(uintptr(0))]*int
 		})
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 type LargeStruct struct {
@@ -372,12 +360,10 @@ type LargeStruct struct {
 }
 
 func BenchmarkMallocLargeStruct(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := make([]LargeStruct, 2)
-		x ^= uintptr(unsafe.Pointer(&p[0]))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 var n = flag.Int("n", 1000, "number of goroutines")

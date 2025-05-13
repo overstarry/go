@@ -22,7 +22,7 @@ TEXT callCfunction<>(SB),	NOSPLIT|NOFRAME,$0
 
 
 // asmsyscall6 calls a library function with a function descriptor
-// stored in libcall_fn and store the results in libcall struture
+// stored in libcall_fn and store the results in libcall structure
 // Up to 6 arguments can be passed to this C function
 // Called by runtime.asmcgocall
 // It reserves a stack of 288 bytes for the C function. It must
@@ -101,7 +101,7 @@ GLOBL	runtime·sigtramp(SB), NOPTR, $24
 // This function must not have any frame as we want to control how
 // every registers are used.
 // TODO(aix): Implement SetCgoTraceback handler.
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)
 	// initialize essential registers (just in case)
@@ -210,7 +210,7 @@ TEXT tstart<>(SB),NOSPLIT,$0
 	MOVD	R3, (g_stack+stack_hi)(g)
 	SUB	$(const_threadStackSize), R3		// stack size
 	MOVD	R3, (g_stack+stack_lo)(g)
-	ADD	$const__StackGuard, R3
+	ADD	$const_stackGuard, R3
 	MOVD	R3, g_stackguard0(g)
 	MOVD	R3, g_stackguard1(g)
 

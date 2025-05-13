@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fix implements the ``go fix'' command.
+// Package fix implements the “go fix” command.
 package fix
 
 import (
@@ -40,7 +40,7 @@ See also: go fmt, go vet.
 var fixes = CmdFix.Flag.String("fix", "", "comma-separated list of fixes to apply")
 
 func init() {
-	work.AddBuildFlags(CmdFix, work.DefaultBuildFlags)
+	work.AddBuildFlags(CmdFix, work.OmitBuildOnlyFlags)
 	CmdFix.Run = runFix // fix cycle
 }
 

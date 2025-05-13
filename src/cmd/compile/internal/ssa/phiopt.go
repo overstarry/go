@@ -7,20 +7,22 @@ package ssa
 // phiopt eliminates boolean Phis based on the previous if.
 //
 // Main use case is to transform:
-//   x := false
-//   if b {
-//     x = true
-//   }
+//
+//	x := false
+//	if b {
+//	  x = true
+//	}
+//
 // into x = b.
 //
 // In SSA code this appears as
 //
-// b0
-//   If b -> b1 b2
-// b1
-//   Plain -> b2
-// b2
-//   x = (OpPhi (ConstBool [true]) (ConstBool [false]))
+//	b0
+//	  If b -> b1 b2
+//	b1
+//	  Plain -> b2
+//	b2
+//	  x = (OpPhi (ConstBool [true]) (ConstBool [false]))
 //
 // In this case we can replace x with a copy of b.
 func phiopt(f *Func) {
@@ -110,6 +112,33 @@ func phiopt(f *Func) {
 			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
 				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
 					v.reset(OpAndB)
+					v.SetArgs2(b0.Controls[0], tmp)
+					if f.pass.debug > 0 {
+						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
+					}
+					continue
+				}
+			}
+			// Replaces
+			//   if a { x = value } else { x = a } with x = a && value.
+			// Requires that value dominates x.
+			if v.Args[1-reverse] == b0.Controls[0] {
+				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
+					v.reset(OpAndB)
+					v.SetArgs2(b0.Controls[0], tmp)
+					if f.pass.debug > 0 {
+						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
+					}
+					continue
+				}
+			}
+
+			// Replaces
+			//   if a { x = a } else { x = value } with x = a || value.
+			// Requires that value dominates x.
+			if v.Args[reverse] == b0.Controls[0] {
+				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
+					v.reset(OpOrB)
 					v.SetArgs2(b0.Controls[0], tmp)
 					if f.pass.debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)

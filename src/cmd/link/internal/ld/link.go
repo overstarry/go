@@ -33,7 +33,6 @@ package ld
 import (
 	"bufio"
 	"cmd/internal/objabi"
-	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
@@ -45,7 +44,31 @@ type Shlib struct {
 	Hash []byte
 	Deps []string
 	File *elf.File
+	// For every symbol defined in the shared library, record its address
+	// in the original shared library address space.
+	symAddr map[string]uint64
+	// For relocations in the shared library, map from the address
+	// (in the shared library address space) at which that
+	// relocation applies to the target symbol.  We only keep
+	// track of a single kind of relocation: a standard absolute
+	// address relocation with no addend. These were R_ADDR
+	// relocations when the shared library was built.
+	relocTarget map[uint64]string
 }
+
+// A relocation that applies to part of the shared library.
+type shlibReloc struct {
+	// Address (in the shared library address space) the relocation applies to.
+	addr uint64
+	// Target symbol name.
+	target string
+}
+
+type shlibRelocs []shlibReloc
+
+func (s shlibRelocs) Len() int           { return len(s) }
+func (s shlibRelocs) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s shlibRelocs) Less(i, j int) bool { return s[i].addr < s[j].addr }
 
 // Link holds the context for writing object code from a compiler
 // or for reading that input into the linker.
@@ -101,23 +124,6 @@ type cgodata struct {
 	file       string
 	pkg        string
 	directives [][]string
-}
-
-// The smallest possible offset from the hardware stack pointer to a local
-// variable on the stack. Architectures that use a link register save its value
-// on the stack in the function prologue and so always have a pointer between
-// the hardware stack pointer and the local variable area.
-func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386:
-		return 0
-	case sys.PPC64:
-		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
-		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.PtrSize)
-	default:
-		return int64(ctxt.Arch.PtrSize)
-	}
 }
 
 func (ctxt *Link) Logf(format string, args ...interface{}) {
