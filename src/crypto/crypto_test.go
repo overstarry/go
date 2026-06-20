@@ -5,13 +5,21 @@
 package crypto_test
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
+	"internal/testenv"
 	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -87,4 +95,90 @@ UjmopwKBgAqB2KYYMUqAOvYcBnEfLDmyZv9BTVNHbR2lKkMYqv5LlvDaBxVfilE0
 	if err := rsa.VerifyPSS(&k.PublicKey, crypto.SHA256, digest, sig, nil); err != nil {
 		t.Errorf("VerifyPSS failed for MessageSigner signature: %s", err)
 	}
+}
+
+func TestDisallowedAssemblyInstructions(t *testing.T) {
+	// This test enforces the cryptography assembly policy rule that we do not
+	// use BYTE or WORD instructions, since these instructions can obscure what
+	// the assembly is actually doing. If we do not support specific
+	// instructions in the assembler, we should not be using them until we do.
+	//
+	// Instead of using the output of the 'go tool asm' tool, we take the simple
+	// approach and just search the text of .s files for usage of BYTE and WORD.
+	// We do this because the assembler itself will sometimes insert WORD
+	// instructions for things like function preambles etc.
+
+	boringSigPath := filepath.Join("internal", "boring", "sig")
+
+	matcher, err := regexp.Compile(`(^|;)\s(BYTE|WORD)\s`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := filepath.WalkDir(filepath.Join(testenv.GOROOT(t), "src/crypto"), func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".s") {
+			return nil
+		}
+		if strings.Contains(path, boringSigPath) {
+			return nil
+		}
+
+		f, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		i := 1
+		for line := range bytes.Lines(f) {
+			if matcher.Match(line) {
+				t.Errorf("%s:%d assembly contains BYTE or WORD instruction (%q)", path, i, string(line))
+			}
+			i++
+		}
+
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRegisterHashLimits(t *testing.T) {
+	// maxHash is not exported, so we just use its value. If maxHash ever changes
+	// this will need to be updated.
+	for _, h := range []crypto.Hash{0, 21, crypto.MLDSAMu} {
+		t.Run(fmt.Sprintf("h=%d", h), func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("RegisterHash did not panic for %v", h)
+				}
+			}()
+			crypto.RegisterHash(h, sha256.New)
+		})
+	}
+}
+
+func TestMLDSAMu(t *testing.T) {
+	h := crypto.MLDSAMu
+	if got := h.Size(); got != 64 {
+		t.Errorf("MLDSAMu.Size() = %d, want 64", got)
+	}
+	if got := h.String(); got != "ML-DSA μ message representative" {
+		t.Errorf("MLDSAMu.String() = %q", got)
+	}
+	if h.Available() {
+		t.Errorf("MLDSAMu.Available() = true, want false")
+	}
+	if got := h.HashFunc(); got != h {
+		t.Errorf("MLDSAMu.HashFunc() = %v, want itself", got)
+	}
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("MLDSAMu.New() did not panic")
+			}
+		}()
+		_ = h.New()
+	}()
 }

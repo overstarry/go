@@ -12,12 +12,12 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	crand "crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"internal/synctest"
 	"internal/testenv"
 	"io"
 	"log"
@@ -43,6 +43,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -287,7 +288,7 @@ func testHostHandlers(t *testing.T, mode testMode) {
 			if s != vt.expected {
 				t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
 			}
-		case StatusMovedPermanently:
+		case StatusTemporaryRedirect:
 			s := r.Header.Get("Location")
 			if s != vt.expected {
 				t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
@@ -339,7 +340,7 @@ var serveMuxTests = []struct {
 	pattern string
 }{
 	{"GET", "google.com", "/", 404, ""},
-	{"GET", "google.com", "/dir", 301, "/dir/"},
+	{"GET", "google.com", "/dir", 307, "/dir/"},
 	{"GET", "google.com", "/dir/", 200, "/dir/"},
 	{"GET", "google.com", "/dir/file", 200, "/dir/"},
 	{"GET", "google.com", "/search", 201, "/search"},
@@ -353,14 +354,14 @@ var serveMuxTests = []struct {
 	{"GET", "images.google.com", "/search", 201, "/search"},
 	{"GET", "images.google.com", "/search/", 404, ""},
 	{"GET", "images.google.com", "/search/foo", 404, ""},
-	{"GET", "google.com", "/../search", 301, "/search"},
-	{"GET", "google.com", "/dir/..", 301, ""},
-	{"GET", "google.com", "/dir/..", 301, ""},
-	{"GET", "google.com", "/dir/./file", 301, "/dir/"},
+	{"GET", "google.com", "/../search", 307, "/search"},
+	{"GET", "google.com", "/dir/..", 307, ""},
+	{"GET", "google.com", "/dir/..", 307, ""},
+	{"GET", "google.com", "/dir/./file", 307, "/dir/"},
 
 	// The /foo -> /foo/ redirect applies to CONNECT requests
 	// but the path canonicalization does not.
-	{"CONNECT", "google.com", "/dir", 301, "/dir/"},
+	{"CONNECT", "google.com", "/dir", 307, "/dir/"},
 	{"CONNECT", "google.com", "/../search", 404, ""},
 	{"CONNECT", "google.com", "/dir/..", 200, "/dir/"},
 	{"CONNECT", "google.com", "/dir/..", 200, "/dir/"},
@@ -388,6 +389,19 @@ func TestServeMuxHandler(t *testing.T) {
 		if pattern != tt.pattern || rr.Code != tt.code {
 			t.Errorf("%s %s %s = %d, %q, want %d, %q", tt.method, tt.host, tt.path, rr.Code, pattern, tt.code, tt.pattern)
 		}
+	}
+}
+
+// Issue 73688
+func TestServeMuxHandlerTrailingSlash(t *testing.T) {
+	setParallel(t)
+	mux := NewServeMux()
+	const original = "/{x}/"
+	mux.Handle(original, NotFoundHandler())
+	r, _ := NewRequest("POST", "/foo", nil)
+	_, p := mux.Handler(r)
+	if p != original {
+		t.Errorf("got %q, want %q", p, original)
 	}
 }
 
@@ -440,7 +454,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 			h, _ := mux.Handler(r)
 			rr := httptest.NewRecorder()
 			h.ServeHTTP(rr, r)
-			if rr.Code != 301 {
+			if rr.Code != 307 {
 				if rr.Code != tt.code {
 					t.Errorf("%s %s %s = %d, want %d", tt.method, tt.host, tt.url, rr.Code, tt.code)
 				}
@@ -456,6 +470,37 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 		if tries < 0 {
 			t.Errorf("%s %s %s, too many redirects", tt.method, tt.host, tt.url)
 		}
+	}
+}
+
+func TestServeMuxHandlerRedirectPost(t *testing.T) {
+	setParallel(t)
+	mux := NewServeMux()
+	mux.HandleFunc("POST /test/", func(w ResponseWriter, r *Request) {
+		w.WriteHeader(200)
+	})
+
+	var code, retries int
+	startURL := "http://example.com/test"
+	reqURL := startURL
+	for retries = 0; retries <= 1; retries++ {
+		r := httptest.NewRequest("POST", reqURL, strings.NewReader("hello world"))
+		h, _ := mux.Handler(r)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, r)
+		code = rr.Code
+		switch rr.Code {
+		case 307:
+			reqURL = rr.Result().Header.Get("Location")
+			continue
+		case 200:
+			// ok
+		default:
+			t.Errorf("unhandled response code: %v", rr.Code)
+		}
+	}
+	if code != 200 {
+		t.Errorf("POST %s = %d after %d retries, want = 200", startURL, code, retries)
 	}
 }
 
@@ -478,8 +523,8 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 			return
 		}
 
-		if code, expected := resp.Code, StatusMovedPermanently; code != expected {
-			t.Errorf("Expected response code of StatusMovedPermanently; got %d", code)
+		if code, expected := resp.Code, StatusTemporaryRedirect; code != expected {
+			t.Errorf("Expected response code of StatusPermanentRedirect; got %d", code)
 			return
 		}
 	}
@@ -565,18 +610,18 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 		want   string
 	}{
 		{"GET", "http://example.com/", 404, "", ""},
-		{"GET", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
+		{"GET", "http://example.com/pkg/foo", 307, "/pkg/foo/", ""},
 		{"GET", "http://example.com/pkg/bar", 200, "", "example.com/pkg/bar"},
 		{"GET", "http://example.com/pkg/bar/", 200, "", "example.com/pkg/bar/"},
-		{"GET", "http://example.com/pkg/baz", 301, "/pkg/baz/", ""},
-		{"GET", "http://example.com:3000/pkg/foo", 301, "/pkg/foo/", ""},
+		{"GET", "http://example.com/pkg/baz", 307, "/pkg/baz/", ""},
+		{"GET", "http://example.com:3000/pkg/foo", 307, "/pkg/foo/", ""},
 		{"CONNECT", "http://example.com/", 404, "", ""},
 		{"CONNECT", "http://example.com:3000/", 404, "", ""},
 		{"CONNECT", "http://example.com:9000/", 200, "", "example.com:9000/"},
-		{"CONNECT", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
+		{"CONNECT", "http://example.com/pkg/foo", 307, "/pkg/foo/", ""},
 		{"CONNECT", "http://example.com:3000/pkg/foo", 404, "", ""},
-		{"CONNECT", "http://example.com:3000/pkg/baz", 301, "/pkg/baz/", ""},
-		{"CONNECT", "http://example.com:3000/pkg/connect", 301, "/pkg/connect/", ""},
+		{"CONNECT", "http://example.com:3000/pkg/baz", 307, "/pkg/baz/", ""},
+		{"CONNECT", "http://example.com:3000/pkg/connect", 307, "/pkg/connect/", ""},
 	}
 
 	for i, tt := range tests {
@@ -770,7 +815,7 @@ func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode tes
 	return nil
 }
 
-func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout) }
+func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout, http3SkippedMode) }
 func testServerReadTimeout(t *testing.T, mode testMode) {
 	respBody := "response body"
 	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
@@ -811,7 +856,10 @@ func testServerReadTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerNoReadTimeout(t *testing.T) { run(t, testServerNoReadTimeout) }
+func TestServerNoReadTimeout(t *testing.T) {
+	// Flaky on HTTP/3.
+	run(t, testServerNoReadTimeout, http3SkippedMode)
+}
 func testServerNoReadTimeout(t *testing.T, mode testMode) {
 	reqBody := "Hello, Gophers!"
 	resBody := "Hi, Gophers!"
@@ -855,7 +903,7 @@ func testServerNoReadTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerWriteTimeout(t *testing.T) { run(t, testServerWriteTimeout) }
+func TestServerWriteTimeout(t *testing.T) { run(t, testServerWriteTimeout, http3SkippedMode) }
 func testServerWriteTimeout(t *testing.T, mode testMode) {
 	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
 		errc := make(chan error, 2)
@@ -923,7 +971,9 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 func TestServerNoWriteTimeout(t *testing.T) { run(t, testServerNoWriteTimeout) }
 func testServerNoWriteTimeout(t *testing.T, mode testMode) {
 	for _, timeout := range []time.Duration{0, -1} {
+		handlerDone := make(chan struct{})
 		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+			defer close(handlerDone)
 			_, err := io.Copy(res, neverEnding('a'))
 			t.Logf("server write response: %v", err)
 		}), func(ts *httptest.Server) {
@@ -935,15 +985,14 @@ func testServerNoWriteTimeout(t *testing.T, mode testMode) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer res.Body.Close()
 		n, err := io.CopyN(io.Discard, res.Body, 1<<20) // 1MB should be sufficient to prove the point
 		if n != 1<<20 || err != nil {
 			t.Errorf("client read response body: %d, %v", n, err)
 		}
-		// This shutdown really should be automatic, but it isn't right now.
-		// Shutdown (rather than Close) ensures the handler is done before we return.
 		res.Body.Close()
+		// This shutdown really should be automatic, but it isn't right now.
 		cst.ts.Config.Shutdown(context.Background())
+		<-handlerDone
 	}
 }
 
@@ -1005,7 +1054,7 @@ func TestWriteDeadlineEnforcedPerStream(t *testing.T) {
 		tryTimeouts(t, func(timeout time.Duration) error {
 			return testWriteDeadlineEnforcedPerStream(t, mode, timeout)
 		})
-	})
+	}, http3SkippedMode)
 }
 
 func testWriteDeadlineEnforcedPerStream(t *testing.T, mode testMode, timeout time.Duration) error {
@@ -1527,7 +1576,8 @@ func testHeadResponses(t *testing.T, mode testMode) {
 	if ct := res.Header.Get("Content-Type"); ct != "text/html; charset=utf-8" {
 		t.Errorf("Content-Type: %q; want text/html; charset=utf-8", ct)
 	}
-	if v := res.ContentLength; v != 10 {
+	// HTTP/3 does not automatically set ContentLength. This is intentional.
+	if v := res.ContentLength; v != 10 && mode != http3Mode {
 		t.Errorf("Content-Length: %d; want 10", v)
 	}
 	body, err := io.ReadAll(res.Body)
@@ -1564,6 +1614,65 @@ func testHeadReaderFrom(t *testing.T, mode testMode) {
 	}
 	if string(gotBody) != wantBody {
 		t.Errorf("got unexpected body len=%v, want %v", len(gotBody), len(wantBody))
+	}
+}
+
+// Ensure ResponseWriter.ReadFrom respects declared Content-Length header.
+// https://go.dev/issue/78179.
+func TestReaderFromTooLong(t *testing.T) { run(t, testReaderFromTooLong, []testMode{http1Mode}) }
+func testReaderFromTooLong(t *testing.T, mode testMode) {
+	contentLen := 600 // Longer than content-sniffing length.
+	tests := []struct {
+		name           string
+		reader         io.Reader
+		wantHandlerErr error
+	}{
+		{
+			name:   "reader of correct length",
+			reader: strings.NewReader(strings.Repeat("a", contentLen)),
+		},
+		{
+			name:   "wrapped reader of correct outer length",
+			reader: io.LimitReader(strings.NewReader(strings.Repeat("a", 2*contentLen)), int64(contentLen)),
+		},
+		{
+			name:   "wrapped reader of correct inner length",
+			reader: io.LimitReader(io.LimitReader(strings.NewReader(strings.Repeat("a", 2*contentLen)), int64(contentLen)), int64(2*contentLen)),
+		},
+		{
+			name:           "reader that is too long",
+			reader:         strings.NewReader(strings.Repeat("a", 2*contentLen)),
+			wantHandlerErr: ErrContentLength,
+		},
+		{
+			name:           "wrapped reader that is too long",
+			reader:         io.LimitReader(strings.NewReader(strings.Repeat("a", 2*contentLen)), int64(2*contentLen)),
+			wantHandlerErr: ErrContentLength,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				w.Header().Set("Content-Length", strconv.Itoa(contentLen))
+				n, err := w.(io.ReaderFrom).ReadFrom(tc.reader)
+				if int(n) != contentLen || !errors.Is(err, tc.wantHandlerErr) {
+					t.Errorf("got %v, %v from w.ReadFrom; want %v, %v", n, err, contentLen, tc.wantHandlerErr)
+				}
+			}))
+			res, err := cst.c.Get(cst.ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer res.Body.Close()
+			gotBody, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(gotBody) != contentLen {
+				t.Errorf("got unexpected body len=%v, want %v", len(gotBody), contentLen)
+			}
+		})
 	}
 }
 
@@ -2816,7 +2925,7 @@ func TestTimeoutHandlerPanicRecovery(t *testing.T) {
 	}
 	run(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, wrapper, "intentional death for testing")
-	}, testNotParallel)
+	}, testNotParallel, http3SkippedMode)
 }
 
 func TestRedirectBadPath(t *testing.T) {
@@ -2833,6 +2942,19 @@ func TestRedirectBadPath(t *testing.T) {
 	Redirect(rr, req, "", 304)
 	if rr.Code != 304 {
 		t.Errorf("Code = %d; want 304", rr.Code)
+	}
+}
+
+func TestRedirectEscapedPath(t *testing.T) {
+	baseURL, redirectURL := "http://example.com/foo%2Fbar/", "qux%2Fbaz"
+	req := httptest.NewRequest("GET", baseURL, NoBody)
+
+	rr := httptest.NewRecorder()
+	Redirect(rr, req, redirectURL, StatusMovedPermanently)
+
+	wantURL := "/foo%2Fbar/qux%2Fbaz"
+	if got := rr.Result().Header.Get("Location"); got != wantURL {
+		t.Errorf("Redirect(%s, %s) = %s, want = %s", baseURL, redirectURL, got, wantURL)
 	}
 }
 
@@ -2976,13 +3098,13 @@ func testZeroLengthPostAndResponse(t *testing.T, mode testMode) {
 func TestHandlerPanicNil(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, nil, nil)
-	}, testNotParallel)
+	}, testNotParallel, http3SkippedMode)
 }
 
 func TestHandlerPanic(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, nil, "intentional death for testing")
-	}, testNotParallel)
+	}, testNotParallel, http3SkippedMode)
 }
 
 func TestHandlerPanicWithHijack(t *testing.T) {
@@ -3168,7 +3290,7 @@ func TestStripPrefixNotModifyRequest(t *testing.T) {
 	}
 }
 
-func TestRequestLimit(t *testing.T) { run(t, testRequestLimit) }
+func TestRequestLimit(t *testing.T) { run(t, testRequestLimit, http3SkippedMode) }
 func testRequestLimit(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		t.Fatalf("didn't expect to get request in Handler")
@@ -3297,7 +3419,7 @@ func testRequestBodyLimit(t *testing.T, mode testMode) {
 
 // TestClientWriteShutdown tests that if the client shuts down the write
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
-func TestClientWriteShutdown(t *testing.T) { run(t, testClientWriteShutdown) }
+func TestClientWriteShutdown(t *testing.T) { run(t, testClientWriteShutdown, http3SkippedMode) }
 func testClientWriteShutdown(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/17906")
@@ -4193,7 +4315,7 @@ func TestContentTypeOkayOn204(t *testing.T) {
 // and the http client), and both think they can close it on failure.
 // Therefore, all incoming server requests Bodies need to be thread-safe.
 func TestTransportAndServerSharedBodyRace(t *testing.T) {
-	run(t, testTransportAndServerSharedBodyRace, testNotParallel)
+	run(t, testTransportAndServerSharedBodyRace, testNotParallel, http3SkippedMode)
 }
 func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
 	// The proxy server in the middle of the stack for this test potentially
@@ -5061,7 +5183,7 @@ func TestServerValidatesHeaders(t *testing.T) {
 }
 
 func TestServerRequestContextCancel_ServeHTTPDone(t *testing.T) {
-	run(t, testServerRequestContextCancel_ServeHTTPDone)
+	run(t, testServerRequestContextCancel_ServeHTTPDone, http3SkippedMode)
 }
 func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, mode testMode) {
 	ctxc := make(chan context.Context, 1)
@@ -5114,7 +5236,7 @@ func testServerRequestContextCancel_ConnClose(t *testing.T, mode testMode) {
 }
 
 func TestServerContext_ServerContextKey(t *testing.T) {
-	run(t, testServerContext_ServerContextKey)
+	run(t, testServerContext_ServerContextKey, http3SkippedMode)
 }
 func testServerContext_ServerContextKey(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -5132,7 +5254,7 @@ func testServerContext_ServerContextKey(t *testing.T, mode testMode) {
 }
 
 func TestServerContext_LocalAddrContextKey(t *testing.T) {
-	run(t, testServerContext_LocalAddrContextKey)
+	run(t, testServerContext_LocalAddrContextKey, http3SkippedMode)
 }
 func testServerContext_LocalAddrContextKey(t *testing.T, mode testMode) {
 	ch := make(chan any, 1)
@@ -5268,8 +5390,8 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, mode testMode)
 func BenchmarkServer(b *testing.B) {
 	b.ReportAllocs()
 	// Child process mode;
-	if url := os.Getenv("TEST_BENCH_SERVER_URL"); url != "" {
-		n, err := strconv.Atoi(os.Getenv("TEST_BENCH_CLIENT_N"))
+	if url := os.Getenv("GO_TEST_BENCH_SERVER_URL"); url != "" {
+		n, err := strconv.Atoi(os.Getenv("GO_TEST_BENCH_CLIENT_N"))
 		if err != nil {
 			panic(err)
 		}
@@ -5303,8 +5425,8 @@ func BenchmarkServer(b *testing.B) {
 
 	cmd := testenv.Command(b, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkServer$")
 	cmd.Env = append([]string{
-		fmt.Sprintf("TEST_BENCH_CLIENT_N=%d", b.N),
-		fmt.Sprintf("TEST_BENCH_SERVER_URL=%s", ts.URL),
+		fmt.Sprintf("GO_TEST_BENCH_CLIENT_N=%d", b.N),
+		fmt.Sprintf("GO_TEST_BENCH_SERVER_URL=%s", ts.URL),
 	}, os.Environ()...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -5325,68 +5447,12 @@ func getNoBody(urlStr string) (*Response, error) {
 // A benchmark for profiling the client without the HTTP server code.
 // The server code runs in a subprocess.
 func BenchmarkClient(b *testing.B) {
-	b.ReportAllocs()
-	b.StopTimer()
-	defer afterTest(b)
-
 	var data = []byte("Hello world.\n")
-	if server := os.Getenv("TEST_BENCH_SERVER"); server != "" {
-		// Server process mode.
-		port := os.Getenv("TEST_BENCH_SERVER_PORT") // can be set by user
-		if port == "" {
-			port = "0"
-		}
-		ln, err := net.Listen("tcp", "localhost:"+port)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		fmt.Println(ln.Addr().String())
-		HandleFunc("/", func(w ResponseWriter, r *Request) {
-			r.ParseForm()
-			if r.Form.Get("stop") != "" {
-				os.Exit(0)
-			}
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(data)
-		})
-		var srv Server
-		log.Fatal(srv.Serve(ln))
-	}
 
-	// Start server process.
-	ctx, cancel := context.WithCancel(context.Background())
-	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkClient$")
-	cmd.Env = append(cmd.Environ(), "TEST_BENCH_SERVER=yes")
-	cmd.Stderr = os.Stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		b.Fatal(err)
-	}
-	if err := cmd.Start(); err != nil {
-		b.Fatalf("subprocess failed to start: %v", err)
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-		close(done)
-	}()
-	defer func() {
-		cancel()
-		<-done
-	}()
-
-	// Wait for the server in the child process to respond and tell us
-	// its listening address, once it's started listening:
-	bs := bufio.NewScanner(stdout)
-	if !bs.Scan() {
-		b.Fatalf("failed to read listening URL from child: %v", bs.Err())
-	}
-	url := "http://" + strings.TrimSpace(bs.Text()) + "/"
-	if _, err := getNoBody(url); err != nil {
-		b.Fatalf("initial probe of child process failed: %v", err)
-	}
+	url := startClientBenchmarkServer(b, HandlerFunc(func(w ResponseWriter, _ *Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(data)
+	}))
 
 	// Do b.N requests to the server.
 	b.StartTimer()
@@ -5405,12 +5471,115 @@ func BenchmarkClient(b *testing.B) {
 		}
 	}
 	b.StopTimer()
+}
+
+func startClientBenchmarkServer(b *testing.B, handler Handler) string {
+	b.ReportAllocs()
+	b.StopTimer()
+
+	if server := os.Getenv("GO_TEST_BENCH_SERVER"); server != "" {
+		// Server process mode.
+		port := os.Getenv("GO_TEST_BENCH_SERVER_PORT") // can be set by user
+		if port == "" {
+			port = "0"
+		}
+		ln, err := net.Listen("tcp", "localhost:"+port)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(ln.Addr().String())
+
+		HandleFunc("/", func(w ResponseWriter, r *Request) {
+			r.ParseForm()
+			if r.Form.Get("stop") != "" {
+				os.Exit(0)
+			}
+			handler.ServeHTTP(w, r)
+		})
+		var srv Server
+		log.Fatal(srv.Serve(ln))
+	}
+
+	// Start server process.
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=^$", "-test.bench=^"+b.Name()+"$")
+	cmd.Env = append(cmd.Environ(), "GO_TEST_BENCH_SERVER=yes")
+	cmd.Stderr = os.Stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		b.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		b.Fatalf("subprocess failed to start: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+		close(done)
+	}()
+
+	// Wait for the server in the child process to respond and tell us
+	// its listening address, once it's started listening:
+	bs := bufio.NewScanner(stdout)
+	if !bs.Scan() {
+		b.Fatalf("failed to read listening URL from child: %v", bs.Err())
+	}
+	url := "http://" + strings.TrimSpace(bs.Text()) + "/"
+	if _, err := getNoBody(url); err != nil {
+		b.Fatalf("initial probe of child process failed: %v", err)
+	}
 
 	// Instruct server process to stop.
-	getNoBody(url + "?stop=yes")
-	if err := <-done; err != nil {
-		b.Fatalf("subprocess failed: %v", err)
+	b.Cleanup(func() {
+		getNoBody(url + "?stop=yes")
+		if err := <-done; err != nil {
+			b.Fatalf("subprocess failed: %v", err)
+		}
+
+		cancel()
+		<-done
+
+		afterTest(b)
+	})
+
+	return url
+}
+
+func BenchmarkClientGzip(b *testing.B) {
+	const responseSize = 1024 * 1024
+
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := io.CopyN(gz, crand.Reader, responseSize); err != nil {
+		b.Fatal(err)
 	}
+	gz.Close()
+
+	data := buf.Bytes()
+
+	url := startClientBenchmarkServer(b, HandlerFunc(func(w ResponseWriter, _ *Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Write(data)
+	}))
+
+	// Do b.N requests to the server.
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		res, err := Get(url)
+		if err != nil {
+			b.Fatalf("Get: %v", err)
+		}
+		n, err := io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		if err != nil {
+			b.Fatalf("ReadAll: %v", err)
+		}
+		if n != responseSize {
+			b.Fatalf("ReadAll: expected %d bytes, got %d", responseSize, n)
+		}
+	}
+	b.StopTimer()
 }
 
 func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {
@@ -5780,7 +5949,7 @@ func testServerSetKeepAlivesEnabledClosesConns(t *testing.T, mode testMode) {
 	// exact same ports from the previous connection.
 }
 
-func TestServerShutdown(t *testing.T) { run(t, testServerShutdown) }
+func TestServerShutdown(t *testing.T) { run(t, testServerShutdown, http3SkippedMode) }
 func testServerShutdown(t *testing.T, mode testMode) {
 	var cst *clientServerTest
 
@@ -5841,8 +6010,10 @@ func testServerShutdown(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerShutdownStateNew(t *testing.T) { runSynctest(t, testServerShutdownStateNew) }
-func testServerShutdownStateNew(t testing.TB, mode testMode) {
+func TestServerShutdownStateNew(t *testing.T) {
+	runSynctest(t, testServerShutdownStateNew, http3SkippedMode)
+}
+func testServerShutdownStateNew(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("test takes 5-6 seconds; skipping in short mode")
 	}
@@ -5906,27 +6077,19 @@ func TestServerCloseDeadlock(t *testing.T) {
 
 // Issue 17717: tests that Server.SetKeepAlivesEnabled is respected by
 // both HTTP/1 and HTTP/2.
-func TestServerKeepAlivesEnabled(t *testing.T) { run(t, testServerKeepAlivesEnabled, testNotParallel) }
+func TestServerKeepAlivesEnabled(t *testing.T) {
+	runSynctest(t, testServerKeepAlivesEnabled, http3SkippedMode)
+}
 func testServerKeepAlivesEnabled(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		restore := ExportSetH2GoawayTimeout(10 * time.Millisecond)
-		defer restore()
-	}
-	// Not parallel: messes with global variable. (http2goAwayTimeout)
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optFakeNet)
 	defer cst.close()
 	srv := cst.ts.Config
 	srv.SetKeepAlivesEnabled(false)
-	for try := 0; try < 2; try++ {
-		waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-			if !srv.ExportAllConnsIdle() {
-				if d > 0 {
-					t.Logf("test server still has active conns after %v", d)
-				}
-				return false
-			}
-			return true
-		})
+	for try := range 2 {
+		synctest.Wait()
+		if !srv.ExportAllConnsIdle() {
+			t.Fatalf("test server still has active conns before request %v", try)
+		}
 		conns := 0
 		var info httptrace.GotConnInfo
 		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
@@ -6402,7 +6565,7 @@ func TestStripPortFromHost(t *testing.T) {
 	}
 }
 
-func TestServerContexts(t *testing.T) { run(t, testServerContexts) }
+func TestServerContexts(t *testing.T) { run(t, testServerContexts, http3SkippedMode) }
 func testServerContexts(t *testing.T, mode testMode) {
 	type baseKey struct{}
 	type connKey struct{}
@@ -6514,7 +6677,9 @@ func testUnsupportedTransferEncodingsReturn501(t *testing.T, mode testMode) {
 }
 
 // Issue 31753: don't sniff when Content-Encoding is set
-func TestContentEncodingNoSniffing(t *testing.T) { run(t, testContentEncodingNoSniffing) }
+func TestContentEncodingNoSniffing(t *testing.T) {
+	run(t, testContentEncodingNoSniffing, http3SkippedMode)
+}
 func testContentEncodingNoSniffing(t *testing.T, mode testMode) {
 	type setting struct {
 		name string
@@ -6640,7 +6805,6 @@ func testTimeoutHandlerSuperfluousLogs(t *testing.T, mode testMode) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			exitHandler := make(chan bool, 1)
 			defer close(exitHandler)
@@ -6880,7 +7044,7 @@ func TestMuxRedirectRelative(t *testing.T) {
 	if got, want := resp.Header().Get("Location"), "/"; got != want {
 		t.Errorf("Location header expected %q; got %q", want, got)
 	}
-	if got, want := resp.Code, StatusMovedPermanently; got != want {
+	if got, want := resp.Code, StatusTemporaryRedirect; got != want {
 		t.Errorf("Expected response code %d; got %d", want, got)
 	}
 }
@@ -6989,10 +7153,13 @@ func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64
 		t.Logf("set RST avoidance delay to %v", timeout)
 
 		var (
+			mu         sync.Mutex // guards below
 			handlerN   int64
 			handlerErr error
 		)
 		echo := HandlerFunc(func(w ResponseWriter, r *Request) {
+			mu.Lock()
+			defer mu.Unlock()
 			var buf bytes.Buffer
 			handlerN, handlerErr = io.Copy(&buf, r.Body)
 			io.Copy(w, &buf)
@@ -7041,6 +7208,8 @@ func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64
 		// to rstAvoidanceDelay being too short, so we use t.Errorf for those
 		// instead of returning a (retriable) error.
 
+		mu.Lock()
+		defer mu.Unlock()
 		if handlerN > maxSize {
 			t.Errorf("expected max request body %d; got %d", maxSize, handlerN)
 		}
@@ -7095,7 +7264,7 @@ func TestProcessing(t *testing.T) {
 	}
 }
 
-func TestParseFormCleanup(t *testing.T) { run(t, testParseFormCleanup) }
+func TestParseFormCleanup(t *testing.T) { run(t, testParseFormCleanup, http3SkippedMode) }
 func testParseFormCleanup(t *testing.T, mode testMode) {
 	if mode == http2Mode {
 		t.Skip("https://go.dev/issue/20253")
@@ -7244,7 +7413,8 @@ func testDisableContentLength(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := res.Header.Get("Content-Length"); got != "2" {
+	// HTTP/3 does not automatically set ContentLength. This is intentional.
+	if got := res.Header.Get("Content-Length"); got != "2" && mode != http3Mode {
 		t.Errorf("Content-Length: %q; want 2", got)
 	}
 	if err := res.Body.Close(); err != nil {
@@ -7494,4 +7664,18 @@ func testServerTLSNextProtos(t *testing.T, mode testMode) {
 	if !slices.Equal(nextProtos, wantNextProtos) {
 		t.Fatalf("after running test: original NextProtos slice = %v, want %v", nextProtos, wantNextProtos)
 	}
+}
+
+// Verifies that starting a server with HTTP/2 disabled and an empty TLSConfig does not panic.
+// (Tests fix in CL 758560.)
+func TestServerHTTP2Disabled(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		li := fakeNetListen()
+		srv := &Server{}
+		srv.Protocols = new(Protocols)
+		srv.Protocols.SetHTTP1(true)
+		go srv.ServeTLS(li, "", "")
+		synctest.Wait()
+		srv.Shutdown(t.Context())
+	})
 }

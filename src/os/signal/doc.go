@@ -98,12 +98,13 @@ the behavior depends on the file descriptor number. A write to a
 broken pipe on file descriptors 1 or 2 (standard output or standard
 error) will cause the program to exit with a SIGPIPE signal. A write
 to a broken pipe on some other file descriptor will take no action on
-the SIGPIPE signal, and the write will fail with an EPIPE error.
+the SIGPIPE signal, and the write will fail with a [syscall.EPIPE]
+error.
 
 If the program has called Notify to receive SIGPIPE signals, the file
 descriptor number does not matter. The SIGPIPE signal will be
-delivered to the Notify channel, and the write will fail with an EPIPE
-error.
+delivered to the Notify channel, and the write will fail with a
+[syscall.EPIPE] error.
 
 This means that, by default, command line programs will behave like
 typical Unix command line programs, while other programs will not
@@ -212,8 +213,9 @@ before raising the signal.
 On Windows a ^C (Control-C) or ^BREAK (Control-Break) normally cause
 the program to exit. If Notify is called for [os.Interrupt], ^C or ^BREAK
 will cause [os.Interrupt] to be sent on the channel, and the program will
-not exit. If Reset is called, or Stop is called on all channels passed
-to Notify, then the default behavior will be restored.
+not exit. [os.Interrupt] is the only signal that can be used on Windows.
+If Reset is called, or Stop is called on all channels passed to Notify,
+then the default behavior will be restored.
 
 Additionally, if Notify is called, and Windows sends CTRL_CLOSE_EVENT,
 CTRL_LOGOFF_EVENT or CTRL_SHUTDOWN_EVENT to the process, Notify will

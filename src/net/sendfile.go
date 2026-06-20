@@ -12,7 +12,7 @@ import (
 	"syscall"
 )
 
-const supportsSendfile = true
+var testHookSupportsSendfile func() bool
 
 // sendFile copies the contents of r to c using the sendfile
 // system call to minimize copies.
@@ -22,6 +22,9 @@ const supportsSendfile = true
 //
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+	if !supportsSendfile() {
+		return 0, nil, false
+	}
 	var remain int64 = 0 // 0 writes the entire file
 	lr, ok := r.(*io.LimitedReader)
 	if ok {

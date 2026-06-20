@@ -694,7 +694,7 @@ func rot13(r rune) rune {
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
-	// 1.  Grow. This triggers two reallocations in Map.
+	// 1. Grow. This triggers two reallocations in Map.
 	maxRune := func(rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, a)
 	expect := tenRunes(unicode.MaxRune)
@@ -1826,6 +1826,27 @@ func TestCut(t *testing.T) {
 	}
 }
 
+func TestCutLast(t *testing.T) {
+	tests := []struct {
+		s, sep        string
+		before, after string
+		found         bool
+	}{
+		{"a/b/c", "/", "a/b", "c", true},
+		{"a//b//c", "//", "a//b", "c", true},
+		{"abc", "/", "abc", "", false},
+		{"abc", "", "abc", "", true},
+		{"", "", "", "", true},
+		{"/abc", "/", "", "abc", true},
+		{"abc/", "/", "abc", "", true},
+	}
+	for _, tt := range tests {
+		if before, after, found := CutLast(tt.s, tt.sep); before != tt.before || after != tt.after || found != tt.found {
+			t.Errorf("CutLast(%q, %q) = %q, %q, %v; want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
+		}
+	}
+}
+
 var cutPrefixTests = []struct {
 	s, sep string
 	after  string
@@ -1875,8 +1896,9 @@ func makeBenchInputHard() string {
 		"hello", "world",
 	}
 	x := make([]byte, 0, 1<<20)
+	r := rand.New(rand.NewSource(99))
 	for {
-		i := rand.Intn(len(tokens))
+		i := r.Intn(len(tokens))
 		if len(x)+len(tokens[i]) >= 1<<20 {
 			break
 		}
@@ -1964,8 +1986,9 @@ func BenchmarkCountByte(b *testing.B) {
 var makeFieldsInput = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
+	r := rand.New(rand.NewSource(99))
 	for i := range x {
-		switch rand.Intn(10) {
+		switch r.Intn(10) {
 		case 0:
 			x[i] = ' '
 		case 1:
@@ -1984,8 +2007,9 @@ var makeFieldsInput = func() string {
 var makeFieldsInputASCII = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, rest ASCII non-space.
+	r := rand.New(rand.NewSource(99))
 	for i := range x {
-		if rand.Intn(10) == 0 {
+		if r.Intn(10) == 0 {
 			x[i] = ' '
 		} else {
 			x[i] = 'x'

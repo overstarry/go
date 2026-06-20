@@ -28,14 +28,25 @@ const (
 	newtonSHA256 = "d4a9ac22462b35e7821a4f2706c211093da678620a8f9997989ee7cf8d507bbd"
 )
 
+func hookSupportsSendfile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		origHook := testHookSupportsSendfile
+		testHookSupportsSendfile = func() bool { return true }
+		t.Cleanup(func() {
+			testHookSupportsSendfile = origHook
+		})
+	}
+}
+
 // expectSendfile runs f, and verifies that internal/poll.SendFile successfully handles
 // a write to wantConn during f's execution.
 //
-// On platforms where supportsSendfile is false, expectSendfile runs f but does not
+// On platforms where supportsSendfile() is false, expectSendfile runs f but does not
 // expect a call to SendFile.
 func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 	t.Helper()
-	if !supportsSendfile {
+	hookSupportsSendfile(t)
+	if !supportsSendfile() {
 		f()
 		return
 	}

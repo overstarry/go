@@ -10,11 +10,10 @@ import (
 	errorspkg "errors"
 	"internal/asan"
 	"internal/bytealg"
-	"internal/itoa"
 	"internal/msan"
 	"internal/oserror"
 	"internal/race"
-	"runtime"
+	"internal/strconv"
 	"sync"
 	"unsafe"
 )
@@ -171,7 +170,7 @@ func (e Errno) error() string {
 	if err != nil {
 		n, err = formatMessage(flags, 0, uint32(e), 0, b, nil)
 		if err != nil {
-			return "winapi error #" + itoa.Itoa(int(e))
+			return "winapi error #" + strconv.Itoa(int(e))
 		}
 	}
 	// trim terminating \r and \n
@@ -370,8 +369,9 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if err != nil {
 		return InvalidHandle, err
 	}
+	accessFlags := flag & (O_RDONLY | O_WRONLY | O_RDWR)
 	var access uint32
-	switch flag & (O_RDONLY | O_WRONLY | O_RDWR) {
+	switch accessFlags {
 	case O_RDONLY:
 		access = GENERIC_READ
 	case O_WRONLY:
@@ -397,6 +397,35 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if flag&O_CLOEXEC == 0 {
 		sa = makeInheritSa()
 	}
+	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
+	if perm&S_IWRITE == 0 {
+		attrs = FILE_ATTRIBUTE_READONLY
+	}
+	// fileFlags contains the high 12 bits of flag.
+	// This bit range can be used by the caller to specify the file flags
+	// passed to CreateFile. It is an error to use if the bits can't be
+	// mapped to the supported FILE_FLAG_* constants.
+	if fileFlags := uint32(flag) & fileFlagsMask; fileFlags&^validFileFlagsMask == 0 {
+		attrs |= fileFlags
+	} else {
+		return InvalidHandle, oserror.ErrInvalid
+	}
+
+	switch accessFlags {
+	case O_WRONLY, O_RDWR:
+		// Unix doesn't allow opening a directory with O_WRONLY
+		// or O_RDWR, so we don't set the flag in that case,
+		// which will make CreateFile fail with ERROR_ACCESS_DENIED.
+		// We will map that to EISDIR if the file is a directory.
+	default:
+		// We might be opening a directory for reading,
+		// and CreateFile requires FILE_FLAG_BACKUP_SEMANTICS
+		// to work with directories.
+		attrs |= FILE_FLAG_BACKUP_SEMANTICS
+	}
+	if flag&O_SYNC != 0 {
+		attrs |= _FILE_FLAG_WRITE_THROUGH
+	}
 	// We don't use CREATE_ALWAYS, because when opening a file with
 	// FILE_ATTRIBUTE_READONLY these will replace an existing file
 	// with a new, read-only one. See https://go.dev/issue/38225.
@@ -406,28 +435,15 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	switch {
 	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
 		createmode = CREATE_NEW
+		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
 	case flag&O_CREAT == O_CREAT:
 		createmode = OPEN_ALWAYS
 	default:
 		createmode = OPEN_EXISTING
 	}
-	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
-	if perm&S_IWRITE == 0 {
-		attrs = FILE_ATTRIBUTE_READONLY
-	}
-	if flag&O_WRONLY == 0 && flag&O_RDWR == 0 {
-		// We might be opening or creating a directory.
-		// CreateFile requires FILE_FLAG_BACKUP_SEMANTICS
-		// to work with directories.
-		attrs |= FILE_FLAG_BACKUP_SEMANTICS
-	}
-	if flag&O_SYNC != 0 {
-		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
-		attrs |= _FILE_FLAG_WRITE_THROUGH
-	}
 	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
 	if h == InvalidHandle {
-		if err == ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
+		if err == ERROR_ACCESS_DENIED && (attrs&FILE_FLAG_BACKUP_SEMANTICS == 0) {
 			// We should return EISDIR when we are trying to open a directory with write access.
 			fa, e1 := GetFileAttributes(namep)
 			if e1 == nil && fa&FILE_ATTRIBUTE_DIRECTORY != 0 {
@@ -436,10 +452,30 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 		}
 		return h, err
 	}
+	if flag&o_DIRECTORY != 0 {
+		// Check if the file is a directory, else return ENOTDIR.
+		var fi ByHandleFileInformation
+		if err := GetFileInformationByHandle(h, &fi); err != nil {
+			CloseHandle(h)
+			return InvalidHandle, err
+		}
+		if fi.FileAttributes&FILE_ATTRIBUTE_DIRECTORY == 0 {
+			CloseHandle(h)
+			return InvalidHandle, ENOTDIR
+		}
+	}
 	// Ignore O_TRUNC if the file has just been created.
 	if flag&O_TRUNC == O_TRUNC &&
 		(createmode == OPEN_EXISTING || (createmode == OPEN_ALWAYS && err == ERROR_ALREADY_EXISTS)) {
 		err = Ftruncate(h, 0)
+		if err == _ERROR_INVALID_PARAMETER {
+			// ERROR_INVALID_PARAMETER means truncation is not supported on this file handle.
+			// Unix's O_TRUNC specification says to ignore O_TRUNC on named pipes and terminal devices.
+			// We do the same here.
+			if t, err1 := GetFileType(h); err1 == nil && (t == FILE_TYPE_PIPE || t == FILE_TYPE_CHAR) {
+				err = nil
+			}
+		}
 		if err != nil {
 			CloseHandle(h)
 			return InvalidHandle, err
@@ -517,18 +553,8 @@ func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, wh
 	if unsafe.Sizeof(uintptr(0)) == 8 {
 		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 4, uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0, 0)
 	} else {
-		// Different 32-bit systems disgaree about whether distToMove starts 8-byte aligned.
-		switch runtime.GOARCH {
-		default:
-			panic("unsupported 32-bit architecture")
-		case "386":
-			// distToMove is a LARGE_INTEGER, which is 64 bits.
-			_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
-		case "arm":
-			// distToMove must be 8-byte aligned per ARM calling convention
-			// https://docs.microsoft.com/en-us/cpp/build/overview-of-arm-abi-conventions#stage-c-assignment-of-arguments-to-registers-and-stack
-			_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 6, uintptr(handle), 0, uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
-		}
+		// distToMove is a LARGE_INTEGER, which is 64 bits.
+		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
 	}
 	if e1 != 0 {
 		return errnoErr(e1)
@@ -691,7 +717,7 @@ func Utimes(path string, tv []Timeval) (err error) {
 	if tv[0].Nanoseconds() != 0 {
 		a = NsecToFiletime(tv[0].Nanoseconds())
 	}
-	if tv[0].Nanoseconds() != 0 {
+	if tv[1].Nanoseconds() != 0 {
 		w = NsecToFiletime(tv[1].Nanoseconds())
 	}
 	return SetFileTime(h, nil, &a, &w)
@@ -1340,7 +1366,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa.Itoa(int(s))
+	return "signal " + strconv.Itoa(int(s))
 }
 
 func LoadCreateSymbolicLink() error {
@@ -1349,7 +1375,11 @@ func LoadCreateSymbolicLink() error {
 
 // Readlink returns the destination of the named symbolic link.
 func Readlink(path string, buf []byte) (n int, err error) {
-	fd, err := CreateFile(StringToUTF16Ptr(path), GENERIC_READ, 0, nil, OPEN_EXISTING,
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return -1, err
+	}
+	fd, err := CreateFile(pathp, GENERIC_READ, 0, nil, OPEN_EXISTING,
 		FILE_FLAG_OPEN_REPARSE_POINT|FILE_FLAG_BACKUP_SEMANTICS, 0)
 	if err != nil {
 		return -1, err

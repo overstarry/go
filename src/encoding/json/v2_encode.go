@@ -10,6 +10,14 @@
 //
 // See "JSON and Go" for an introduction to this package:
 // https://golang.org/doc/articles/json_and_go.html
+//
+// # Security Considerations
+//
+// See the "Security Considerations" section in [encoding/json/v2].
+//
+// For historical reasons, the default behavior of v1 [encoding/json]
+// unfortunately operates with less secure defaults.
+// New usages of JSON in Go are encouraged to use [encoding/json/v2] instead.
 package json
 
 import (
@@ -22,14 +30,24 @@ import (
 // Marshal returns the JSON encoding of v.
 //
 // Marshal traverses the value v recursively.
-// If an encountered value implements [Marshaler]
-// and is not a nil pointer, Marshal calls [Marshaler.MarshalJSON]
-// to produce JSON. If no [Marshaler.MarshalJSON] method is present but the
-// value implements [encoding.TextMarshaler] instead, Marshal calls
-// [encoding.TextMarshaler.MarshalText] and encodes the result as a JSON string.
-// The nil pointer exception is not strictly necessary
-// but mimics a similar, necessary exception in the behavior of
-// [Unmarshaler.UnmarshalJSON].
+//
+// The input value is encoded as JSON according the following rules:
+//
+//   - If the value type implements [jsonv2.MarshalerTo],
+//     then the MarshalJSONTo method is called to encode the value.
+//     If the method returns [errors.ErrUnsupported],
+//     then the input is encoded according to subsequent rules.
+//
+//   - If the value type implements [Marshaler],
+//     then the MarshalJSON method is called to encode the value.
+//
+//   - If the value type implements [encoding.TextAppender],
+//     then the AppendText method is called to encode the value and
+//     subsequently encode its result as a JSON string.
+//
+//   - If the value type implements [encoding.TextMarshaler],
+//     then the MarshalText method is called to encode the value and
+//     subsequently encode its result as a JSON string.
 //
 // Otherwise, Marshal uses the following type-dependent default encodings:
 //
@@ -68,7 +86,10 @@ import (
 // slice, map, or string of length zero.
 //
 // As a special case, if the field tag is "-", the field is always omitted.
-// Note that a field with name "-" can still be generated using the tag "-,".
+// JSON names containing commas or quotes, or names identical to "" or "-",
+// can be specified using a single-quoted string literal, where the syntax
+// is identical to the Go grammar for a double-quoted string literal,
+// but instead uses single quotes as the delimiters.
 //
 // Examples of struct field tags and their meanings:
 //
@@ -89,7 +110,7 @@ import (
 //	Field int `json:"-"`
 //
 //	// Field appears in JSON as key "-".
-//	Field int `json:"-,"`
+//	Field int `json:"'-'"`
 //
 // The "omitzero" option specifies that the field should be omitted
 // from the encoding if the field has a zero value, according to rules:

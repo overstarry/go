@@ -29,6 +29,12 @@ func time_runtimeNow() (sec int64, nsec int32, mono int64) {
 	return time_now()
 }
 
+//go:linkname crypto_internal_fips140deps_time_monoTime crypto/internal/fips140deps/time.monoTime
+func crypto_internal_fips140deps_time_monoTime() (mono int64) {
+	_, _, mono = time_now()
+	return mono
+}
+
 //go:linkname time_runtimeNano time.runtimeNano
 func time_runtimeNano() int64 {
 	gp := getg()
@@ -62,6 +68,7 @@ type timer struct {
 	isFake bool         // timer is using fake time; immutable; can be read without lock
 
 	blocked uint32 // number of goroutines blocked on timer's channel
+	rand    uint32 // randomizes order of timers at same instant; only set when isFake
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
 	// each time calling f(arg, seq, delay) in the timer goroutine, so f must be
@@ -98,7 +105,6 @@ type timer struct {
 	ts *timers
 
 	// sendLock protects sends on the timer's channel.
-	// Not used for async (pre-Go 1.23) behavior when debug.asynctimerchan.Load() != 0.
 	sendLock mutex
 
 	// isSending is used to handle races between running a
@@ -156,13 +162,26 @@ type timers struct {
 	// heap[i].when over timers with the timerModified bit set.
 	// If minWhenModified = 0, it means there are no timerModified timers in the heap.
 	minWhenModified atomic.Int64
-
-	bubble *synctestBubble
 }
 
 type timerWhen struct {
 	timer *timer
 	when  int64
+}
+
+// less reports whether tw is less than other.
+func (tw timerWhen) less(other timerWhen) bool {
+	switch {
+	case tw.when < other.when:
+		return true
+	case tw.when > other.when:
+		return false
+	default:
+		// When timers wake at the same time, use a per-timer random value to order them.
+		// We only set the random value for timers using fake time, since there's
+		// no practical way to schedule real-time timers for the same instant.
+		return tw.timer.rand < other.timer.rand
+	}
 }
 
 func (ts *timers) lock() {
@@ -387,7 +406,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 			throw("invalid timer channel: no capacity")
 		}
 	}
-	if gr := getg().bubble; gr != nil {
+	if bubble := getg().bubble; bubble != nil {
 		t.isFake = true
 	}
 	t.modify(when, period, f, arg, 0)
@@ -401,7 +420,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 //go:linkname stopTimer time.stopTimer
 func stopTimer(t *timeTimer) bool {
 	if t.isFake && getg().bubble == nil {
-		panic("stop of synctest timer from outside bubble")
+		fatal("stop of synctest timer from outside bubble")
 	}
 	return t.stop()
 }
@@ -416,7 +435,7 @@ func resetTimer(t *timeTimer, when, period int64) bool {
 		racerelease(unsafe.Pointer(&t.timer))
 	}
 	if t.isFake && getg().bubble == nil {
-		panic("reset of synctest timer from outside bubble")
+		fatal("reset of synctest timer from outside bubble")
 	}
 	return t.reset(when, period)
 }
@@ -452,45 +471,17 @@ func (ts *timers) addHeap(t *timer) {
 	}
 }
 
-// maybeRunAsync checks whether t needs to be triggered and runs it if so.
-// The caller is responsible for locking the timer and for checking that we
-// are running timers in async mode. If the timer needs to be run,
-// maybeRunAsync will unlock and re-lock it.
-// The timer is always locked on return.
-func (t *timer) maybeRunAsync() {
-	assertLockHeld(&t.mu)
-	if t.state&timerHeaped == 0 && t.isChan && t.when > 0 {
-		// If timer should have triggered already (but nothing looked at it yet),
-		// trigger now, so that a receive after the stop sees the "old" value
-		// that should be there.
-		// (It is possible to have t.blocked > 0 if there is a racing receive
-		// in blockTimerChan, but timerHeaped not being set means
-		// it hasn't run t.maybeAdd yet; in that case, running the
-		// timer ourselves now is fine.)
-		if now := nanotime(); t.when <= now {
-			systemstack(func() {
-				t.unlockAndRun(now) // resets t.when
-			})
-			t.lock()
-		}
-	}
-}
-
 // stop stops the timer t. It may be on some other P, so we can't
 // actually remove it from the timers heap. We can only mark it as stopped.
 // It will be removed in due course by the P whose heap it is on.
 // Reports whether the timer was stopped before it was run.
 func (t *timer) stop() bool {
-	async := debug.asynctimerchan.Load() != 0
-	if !async && t.isChan {
+	if t.isChan {
 		lock(&t.sendLock)
 	}
 
 	t.lock()
 	t.trace("stop")
-	if async {
-		t.maybeRunAsync()
-	}
 	if t.state&timerHeaped != 0 {
 		t.state |= timerModified
 		if t.state&timerZombie == 0 {
@@ -501,7 +492,7 @@ func (t *timer) stop() bool {
 	pending := t.when > 0
 	t.when = 0
 
-	if !async && t.isChan {
+	if t.isChan {
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
@@ -516,7 +507,7 @@ func (t *timer) stop() bool {
 		}
 	}
 	t.unlock()
-	if !async && t.isChan {
+	if t.isChan {
 		unlock(&t.sendLock)
 		if timerchandrain(t.hchan()) {
 			pending = true
@@ -562,16 +553,12 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 	if period < 0 {
 		throw("timer period must be non-negative")
 	}
-	async := debug.asynctimerchan.Load() != 0
 
-	if !async && t.isChan {
+	if t.isChan {
 		lock(&t.sendLock)
 	}
 
 	t.lock()
-	if async {
-		t.maybeRunAsync()
-	}
 	t.trace("modify")
 	oldPeriod := t.period
 	t.period = period
@@ -605,7 +592,33 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 
 	add := t.needsAdd()
 
-	if !async && t.isChan {
+	if add && t.isFake {
+		// If this is a bubbled timer scheduled to fire immediately,
+		// run it now rather than waiting for the bubble's timer scheduler.
+		// This avoids deferring timer execution until after the bubble
+		// becomes durably blocked.
+		//
+		// Don't do this for non-bubbled timers: It isn't necessary,
+		// and there may be cases where the runtime executes timers with
+		// the expectation the timer func will not run in the current goroutine.
+		// Bubbled timers are always created by the time package, and are
+		// safe to run in the current goroutine.
+		bubble := getg().bubble
+		if bubble == nil {
+			throw("fake timer executing with no bubble")
+		}
+		if t.state&timerHeaped == 0 && when <= bubble.now {
+			systemstack(func() {
+				if t.isChan {
+					unlock(&t.sendLock)
+				}
+				t.unlockAndRun(bubble.now, bubble)
+			})
+			return pending
+		}
+	}
+
+	if t.isChan {
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
@@ -620,7 +633,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		}
 	}
 	t.unlock()
-	if !async && t.isChan {
+	if t.isChan {
 		if timerchandrain(t.hchan()) {
 			pending = true
 		}
@@ -641,7 +654,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 // t must be locked.
 func (t *timer) needsAdd() bool {
 	assertLockHeld(&t.mu)
-	need := t.state&timerHeaped == 0 && t.when > 0 && (!t.isChan || t.isFake || t.blocked > 0)
+	need := t.state&timerHeaped == 0 && t.when > 0 && (!t.isChan || t.blocked > 0)
 	if need {
 		t.trace("needsAdd+")
 	} else {
@@ -696,6 +709,12 @@ func (t *timer) maybeAdd() {
 	when := int64(0)
 	wake := false
 	if t.needsAdd() {
+		if t.isFake {
+			// Re-randomize timer order.
+			// We could do this for all timers, but unbubbled timers are highly
+			// unlikely to have the same when.
+			t.rand = cheaprand()
+		}
 		t.state |= timerHeaped
 		when = t.when
 		wakeTime := ts.wakeTime()
@@ -960,7 +979,7 @@ func (ts *timers) wakeTime() int64 {
 // We pass now in and out to avoid extra calls of nanotime.
 //
 //go:yeswritebarrierrec
-func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
+func (ts *timers) check(now int64, bubble *synctestBubble) (rnow, pollUntil int64, ran bool) {
 	ts.trace("check")
 	// If it's not yet time for the first timer, or the first adjusted
 	// timer, then there is nothing to do.
@@ -993,7 +1012,7 @@ func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
 		ts.adjust(now, false)
 		for len(ts.heap) > 0 {
 			// Note that runtimer may temporarily unlock ts.
-			if tw := ts.run(now); tw != 0 {
+			if tw := ts.run(now, bubble); tw != 0 {
 				if tw > 0 {
 					pollUntil = tw
 				}
@@ -1025,7 +1044,7 @@ func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
 // If a timer is run, this will temporarily unlock ts.
 //
 //go:systemstack
-func (ts *timers) run(now int64) int64 {
+func (ts *timers) run(now int64, bubble *synctestBubble) int64 {
 	ts.trace("run")
 	assertLockHeld(&ts.mu)
 Redo:
@@ -1059,7 +1078,7 @@ Redo:
 		return t.when
 	}
 
-	t.unlockAndRun(now)
+	t.unlockAndRun(now, bubble)
 	assertLockHeld(&ts.mu) // t is unlocked now, but not ts
 	return 0
 }
@@ -1070,7 +1089,7 @@ Redo:
 // unlockAndRun returns with t unlocked and t.ts (re-)locked.
 //
 //go:systemstack
-func (t *timer) unlockAndRun(now int64) {
+func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 	t.trace("unlockAndRun")
 	assertLockHeld(&t.mu)
 	if t.ts != nil {
@@ -1080,13 +1099,7 @@ func (t *timer) unlockAndRun(now int64) {
 		// Note that we are running on a system stack,
 		// so there is no chance of getg().m being reassigned
 		// out from under us while this function executes.
-		gp := getg()
-		var tsLocal *timers
-		if t.ts == nil || t.ts.bubble == nil {
-			tsLocal = &gp.m.p.ptr().timers
-		} else {
-			tsLocal = &t.ts.bubble.timers
-		}
+		tsLocal := &getg().m.p.ptr().timers
 		if tsLocal.raceCtx == 0 {
 			tsLocal.raceCtx = racegostart(abi.FuncPCABIInternal((*timers).run) + sys.PCQuantum)
 		}
@@ -1122,8 +1135,7 @@ func (t *timer) unlockAndRun(now int64) {
 		t.updateHeap()
 	}
 
-	async := debug.asynctimerchan.Load() != 0
-	if !async && t.isChan && t.period == 0 {
+	if t.isChan && t.period == 0 {
 		// Tell Stop/Reset that we are sending a value.
 		if t.isSending.Add(1) < 0 {
 			throw("too many concurrent timer firings")
@@ -1138,28 +1150,24 @@ func (t *timer) unlockAndRun(now int64) {
 		if gp.racectx != 0 {
 			throw("unexpected racectx")
 		}
-		if ts == nil || ts.bubble == nil {
-			gp.racectx = gp.m.p.ptr().timers.raceCtx
-		} else {
-			gp.racectx = ts.bubble.timers.raceCtx
-		}
+		gp.racectx = gp.m.p.ptr().timers.raceCtx
 	}
 
 	if ts != nil {
 		ts.unlock()
 	}
 
-	if ts != nil && ts.bubble != nil {
+	if bubble != nil {
 		// Temporarily use the timer's synctest group for the G running this timer.
 		gp := getg()
 		if gp.bubble != nil {
 			throw("unexpected syncgroup set")
 		}
-		gp.bubble = ts.bubble
-		ts.bubble.changegstatus(gp, _Gdead, _Grunning)
+		gp.bubble = bubble
+		bubble.changegstatus(gp, _Gdead, _Grunning)
 	}
 
-	if !async && t.isChan {
+	if t.isChan {
 		// For a timer channel, we want to make sure that no stale sends
 		// happen after a t.stop or t.modify, but we cannot hold t.mu
 		// during the actual send (which f does) due to lock ordering.
@@ -1196,17 +1204,17 @@ func (t *timer) unlockAndRun(now int64) {
 
 	f(arg, seq, delay)
 
-	if !async && t.isChan {
+	if t.isChan {
 		unlock(&t.sendLock)
 	}
 
-	if ts != nil && ts.bubble != nil {
+	if bubble != nil {
 		gp := getg()
-		ts.bubble.changegstatus(gp, _Grunning, _Gdead)
+		bubble.changegstatus(gp, _Grunning, _Gdead)
 		if raceenabled {
 			// Establish a happens-before between this timer event and
 			// the next synctest.Wait call.
-			racereleasemergeg(gp, ts.bubble.raceaddr())
+			racereleasemergeg(gp, bubble.raceaddr())
 		}
 		gp.bubble = nil
 	}
@@ -1221,7 +1229,7 @@ func (t *timer) unlockAndRun(now int64) {
 	}
 }
 
-// verifyTimerHeap verifies that the timers is in a valid state.
+// verify verifies that the timer heap is in a valid state.
 // This is only for debugging, and is only called if verifyTimers is true.
 // The caller must have locked ts.
 func (ts *timers) verify() {
@@ -1234,7 +1242,7 @@ func (ts *timers) verify() {
 
 		// The heap is timerHeapN-ary. See siftupTimer and siftdownTimer.
 		p := int(uint(i-1) / timerHeapN)
-		if tw.when < ts.heap[p].when {
+		if tw.less(ts.heap[p]) {
 			print("bad timer heap at ", i, ": ", p, ": ", ts.heap[p].when, ", ", i, ": ", tw.when, "\n")
 			throw("bad timer heap")
 		}
@@ -1312,13 +1320,12 @@ func (ts *timers) siftUp(i int) {
 		badTimer()
 	}
 	tw := heap[i]
-	when := tw.when
-	if when <= 0 {
+	if tw.when <= 0 {
 		badTimer()
 	}
 	for i > 0 {
 		p := int(uint(i-1) / timerHeapN) // parent
-		if when >= heap[p].when {
+		if !tw.less(heap[p]) {
 			break
 		}
 		heap[i] = heap[p]
@@ -1341,8 +1348,7 @@ func (ts *timers) siftDown(i int) {
 		return
 	}
 	tw := heap[i]
-	when := tw.when
-	if when <= 0 {
+	if tw.when <= 0 {
 		badTimer()
 	}
 	for {
@@ -1350,11 +1356,11 @@ func (ts *timers) siftDown(i int) {
 		if leftChild >= n {
 			break
 		}
-		w := when
+		w := tw
 		c := -1
 		for j, tw := range heap[leftChild:min(leftChild+timerHeapN, n)] {
-			if tw.when < w {
-				w = tw.when
+			if tw.less(w) {
+				w = tw
 				c = leftChild + j
 			}
 		}
@@ -1395,24 +1401,10 @@ func badTimer() {
 // maybeRunChan checks whether the timer needs to run
 // to send a value to its associated channel. If so, it does.
 // The timer must not be locked.
-func (t *timer) maybeRunChan() {
-	if t.isFake {
-		t.lock()
-		var timerBubble *synctestBubble
-		if t.ts != nil {
-			timerBubble = t.ts.bubble
-		}
-		t.unlock()
-		bubble := getg().bubble
-		if bubble == nil {
-			panic(plainError("synctest timer accessed from outside bubble"))
-		}
-		if timerBubble != nil && bubble != timerBubble {
-			panic(plainError("timer moved between synctest bubbles"))
-		}
-		// No need to do anything here.
-		// synctest.Run will run the timer when it advances its fake clock.
-		return
+func (t *timer) maybeRunChan(c *hchan) {
+	if t.isFake && getg().bubble != c.bubble {
+		// This should have been checked by the caller, but check just in case.
+		fatal("synctest timer accessed from outside bubble")
 	}
 	if t.astate.Load()&timerHeaped != 0 {
 		// If the timer is in the heap, the ordinary timer code
@@ -1422,6 +1414,9 @@ func (t *timer) maybeRunChan() {
 
 	t.lock()
 	now := nanotime()
+	if t.isFake {
+		now = getg().bubble.now
+	}
 	if t.state&timerHeaped != 0 || t.when == 0 || t.when > now {
 		t.trace("maybeRunChan-")
 		// Timer in the heap, or not running at all, or not triggered.
@@ -1430,7 +1425,7 @@ func (t *timer) maybeRunChan() {
 	}
 	t.trace("maybeRunChan+")
 	systemstack(func() {
-		t.unlockAndRun(now)
+		t.unlockAndRun(now, c.bubble)
 	})
 }
 
@@ -1440,9 +1435,11 @@ func (t *timer) maybeRunChan() {
 // adding it if needed.
 func blockTimerChan(c *hchan) {
 	t := c.timer
-	if t.isFake {
-		return
+	if t.isFake && c.bubble != getg().bubble {
+		// This should have been checked by the caller, but check just in case.
+		fatal("synctest timer accessed from outside bubble")
 	}
+
 	t.lock()
 	t.trace("blockTimerChan")
 	if !t.isChan {
@@ -1480,9 +1477,6 @@ func blockTimerChan(c *hchan) {
 // blocked on it anymore.
 func unblockTimerChan(c *hchan) {
 	t := c.timer
-	if t.isFake {
-		return
-	}
 	t.lock()
 	t.trace("unblockTimerChan")
 	if !t.isChan || t.blocked == 0 {

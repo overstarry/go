@@ -652,7 +652,7 @@ func TestJSONAndTextHandlersWithUnavailableSource(t *testing.T) {
 		h    Handler
 		want string
 	}{
-		{"text", NewTextHandler(&buf, opts), "source=:0 msg=message"},
+		{"text", NewTextHandler(&buf, opts), "msg=message"},
 		{"json", NewJSONHandler(&buf, opts), `{"msg":"message"}`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -760,9 +760,8 @@ func TestWriteTimeRFC3339(t *testing.T) {
 
 func BenchmarkWriteTime(b *testing.B) {
 	tm := time.Date(2022, 3, 4, 5, 6, 7, 823456789, time.Local)
-	b.ResetTimer()
 	var buf []byte
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buf = appendRFC3339Millis(buf[:0], tm)
 	}
 }

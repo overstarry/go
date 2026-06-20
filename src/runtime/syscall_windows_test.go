@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"fmt"
 	"internal/abi"
+	"internal/race"
+	"internal/syscall/windows"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
@@ -668,6 +670,9 @@ func TestWERDialogue(t *testing.T) {
 }
 
 func TestWindowsStackMemory(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test: race mode uses more stack memory")
+	}
 	o := runTestProg(t, "testprog", "StackMemory")
 	stackUsage, err := strconv.Atoi(o)
 	if err != nil {
@@ -768,12 +773,13 @@ func TestSyscallN(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
 	}
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+
+	var nargs = 64
+	if testing.Short() {
+		nargs = 16
 	}
 
-	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
-		arglen := arglen
+	for arglen := range nargs {
 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
 			t.Parallel()
 			args := make([]string, arglen)
@@ -1220,6 +1226,20 @@ var (
 	procCreateEvent = modkernel32.NewProc("CreateEventW")
 	procSetEvent    = modkernel32.NewProc("SetEvent")
 )
+
+func TestTrueVersion(t *testing.T) {
+	ver, err := syscall.GetVersion()
+	if err != nil {
+		t.Fatalf("GetVersion failed: %v", err)
+	}
+	wantMajor, wantMinor, wantBuild := windows.Version()
+	major := uint32(byte(ver))
+	minor := uint32(uint8(ver >> 8))
+	build := uint32(uint16(ver >> 16))
+	if major != wantMajor || minor != wantMinor || build != wantBuild {
+		t.Errorf("GetVersion = %d.%d (Build %d), want %d.%d (Build %d)", major, minor, build, wantMajor, wantMinor, wantBuild)
+	}
+}
 
 func createEvent() (syscall.Handle, error) {
 	r0, _, e0 := syscall.Syscall6(procCreateEvent.Addr(), 4, 0, 0, 0, 0, 0, 0)

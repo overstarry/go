@@ -23,6 +23,12 @@ type Builder struct {
 	buf []byte
 }
 
+// copyCheck implements a dynamic check to prevent modification after
+// copying a non-zero Builder, which would be unsafe (see #25907, #47276).
+//
+// We cannot add a noCopy field to Builder, to cause vet's copylocks
+// check to report copying, because copylocks cannot reliably
+// discriminate the zero and nonzero cases.
 func (b *Builder) copyCheck() {
 	if b.addr == nil {
 		// This hack works around a failing of Go's escape analysis
@@ -93,7 +99,7 @@ func (b *Builder) WriteByte(c byte) error {
 }
 
 // WriteRune appends the UTF-8 encoding of Unicode code point r to b's buffer.
-// It returns the length of r and a nil error.
+// It returns the number of bytes written and a nil error.
 func (b *Builder) WriteRune(r rune) (int, error) {
 	b.copyCheck()
 	n := len(b.buf)

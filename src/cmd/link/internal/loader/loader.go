@@ -15,7 +15,9 @@ import (
 	"debug/elf"
 	"fmt"
 	"internal/abi"
+	"internal/buildcfg"
 	"io"
+	"iter"
 	"log"
 	"math/bits"
 	"os"
@@ -90,6 +92,13 @@ type oReader struct {
 // Total number of defined symbols (package symbols, hashed symbols, and
 // non-package symbols).
 func (r *oReader) NAlldef() int { return r.ndef + r.nhashed64def + r.nhasheddef + r.NNonpkgdef() }
+
+// whether the symbol at local index li is a content hashed symbol
+func (r *oReader) IsContentHashed(li uint32) bool {
+	start := uint32(r.ndef + r.nhashed64def)
+	end := start + uint32(r.nhasheddef)
+	return start <= li && li < end
+}
 
 // objSym represents a symbol in an object file. It is a tuple of
 // the object and the symbol's local index.
@@ -229,17 +238,19 @@ type Loader struct {
 	outer []Sym // indexed by global index
 	sub   map[Sym]Sym
 
-	dynimplib   map[Sym]string      // stores Dynimplib symbol attribute
-	dynimpvers  map[Sym]string      // stores Dynimpvers symbol attribute
-	localentry  map[Sym]uint8       // stores Localentry symbol attribute
-	extname     map[Sym]string      // stores Extname symbol attribute
-	elfType     map[Sym]elf.SymType // stores elf type symbol property
-	elfSym      map[Sym]int32       // stores elf sym symbol property
-	localElfSym map[Sym]int32       // stores "local" elf sym symbol property
-	symPkg      map[Sym]string      // stores package for symbol, or library for shlib-derived syms
-	plt         map[Sym]int32       // stores dynimport for pe objects
-	got         map[Sym]int32       // stores got for pe objects
-	dynid       map[Sym]int32       // stores Dynid for symbol
+	dynimplib     map[Sym]string      // stores Dynimplib symbol attribute
+	dynimpvers    map[Sym]string      // stores Dynimpvers symbol attribute
+	localentry    map[Sym]uint8       // stores Localentry symbol attribute
+	extname       map[Sym]string      // stores Extname symbol attribute
+	elfType       map[Sym]elf.SymType // stores elf type symbol property
+	elfSym        map[Sym]int32       // stores elf sym symbol property
+	localElfSym   map[Sym]int32       // stores "local" elf sym symbol property
+	symPkg        map[Sym]string      // stores package for symbol, or library for shlib-derived syms
+	plt           map[Sym]int32       // stores dynimport for pe objects
+	got           map[Sym]int32       // stores got for pe objects
+	dynid         map[Sym]int32       // stores Dynid for symbol
+	weakBinding   map[Sym]bool        // stores whether a symbol has a weak binding
+	contentHashed map[Sym]bool        // whether a symbol is a content hashed symbol, for external symbol only
 
 	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
 
@@ -252,6 +263,12 @@ type Loader struct {
 	CgoExports map[string]Sym
 
 	WasmExports []Sym
+
+	// sizeFixups records symbols that we need to fix up the size
+	// after loading. It is very rarely needed, only for a DATA symbol
+	// and a BSS symbol with the same name, and the BSS symbol has
+	// larger size.
+	sizeFixups []symAndSize
 
 	flags uint32
 
@@ -319,9 +336,11 @@ func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
+		weakBinding:          make(map[Sym]bool),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
+		contentHashed:        make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
@@ -437,48 +456,85 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 	// issue #46653 and #72032.
 	oldsz := l.SymSize(oldi)
 	sz := int64(r.Sym(li).Siz())
-	if osym.Dupok() {
-		if l.flags&FlagStrictDups != 0 {
-			l.checkdup(name, r, li, oldi)
-		}
-		if oldsz < sz {
-			// new symbol overwrites old symbol.
-			l.objSyms[oldi] = objSym{r.objidx, li}
-		}
-		return oldi
-	}
 	oldr, oldli := l.toLocal(oldi)
 	oldsym := oldr.Sym(oldli)
-	if oldsym.Dupok() {
+	if osym.Dupok() {
+		if oldsym.Dupok() {
+			if l.flags&FlagStrictDups != 0 {
+				l.checkdup(name, r, li, oldi)
+			}
+			if oldsz < sz {
+				// new symbol overwrites old symbol.
+				l.objSyms[oldi] = objSym{r.objidx, li}
+			}
+		}
 		return oldi
 	}
-	// If one is a DATA symbol (i.e. has content, DataSize != 0)
-	// and the other is BSS, the one with content wins.
-	// If both are BSS, the one with larger size wins.
-	// Specifically, the "overwrite" variable and the final result are
-	//
-	// new sym       old sym       overwrite
-	// ---------------------------------------------
-	// DATA          DATA          true  => ERROR
-	// DATA lg/eq    BSS  sm/eq    true  => new wins
-	// DATA small    BSS  large    true  => ERROR
-	// BSS  large    DATA small    true  => ERROR
-	// BSS  large    BSS  small    true  => new wins
-	// BSS  sm/eq    D/B  lg/eq    false => old wins
-	overwrite := r.DataSize(li) != 0 || oldsz < sz
-	if overwrite {
+	if oldsym.Dupok() {
+		// oldsym is Dupok, new is not.
 		// new symbol overwrites old symbol.
-		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
-		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) || oldsz > sz {
-			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
-		}
 		l.objSyms[oldi] = objSym{r.objidx, li}
-	} else {
-		// old symbol overwrites new symbol.
-		typ := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
-		if !typ.IsData() { // only allow overwriting data symbol
-			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
+		return oldi
+	}
+	// If one is a DATA symbol (i.e. has content, DataSize != 0,
+	// including RODATA) and the other is BSS, the one with content wins.
+	// If both are BSS, the one with larger size wins.
+	//
+	// For a special case, we allow a TEXT symbol overwrites a BSS symbol
+	// even if the BSS symbol has larger size. This is because there is
+	// code like below to take the address of a function
+	//
+	//	//go:linkname fn
+	//	var fn uintptr
+	//	var fnAddr = uintptr(unsafe.Pointer(&fn))
+	//
+	// TODO: maybe limit this case to just pointer sized variable?
+	//
+	// In summary, the "overwrite" variable and the final result are
+	//
+	// new sym       old sym       result
+	// -------------------------------------------------------
+	// TEXT          BSS           new wins
+	// DATA          DATA          ERROR
+	// DATA lg/eq    BSS  sm/eq    new wins
+	// DATA small    BSS  large    merge: new with larger size
+	// BSS  large    DATA small    merge: old with larger size
+	// BSS  large    BSS  small    new wins
+	// BSS  sm/eq    D/B  lg/eq    old wins
+	// BSS           TEXT          old wins
+	oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
+	newtyp := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+	newIsText := newtyp.IsText()
+	oldHasContent := oldr.DataSize(oldli) != 0
+	newHasContent := r.DataSize(li) != 0
+	oldIsBSS := oldtyp.IsData() && !oldHasContent
+	newIsBSS := newtyp.IsData() && !newHasContent
+	switch {
+	case newIsText && oldIsBSS,
+		newHasContent && oldIsBSS,
+		newIsBSS && oldIsBSS && sz > oldsz:
+		// new symbol overwrites old symbol.
+		l.objSyms[oldi] = objSym{r.objidx, li}
+		if oldsz > sz {
+			// If the BSS symbol has a larger size, expand the data
+			// symbol's size so access from the BSS side cannot overrun.
+			// It is hard to modify the symbol size until all Go objects
+			// (potentially read-only) are loaded, so we record it in
+			// a fixup table and apply them later. This is very rare.
+			// One case is a global variable with a Go declaration and an
+			// assembly definition, which typically have the same size,
+			// but in ASAN mode the Go declaration has a larger size due
+			// to the inserted red zone.
+			l.sizeFixups = append(l.sizeFixups, symAndSize{oldi, uint32(oldsz)})
 		}
+	case newIsBSS:
+		// old win, just ignore the new symbol.
+		if sz > oldsz {
+			// See the comment above for sizeFixups.
+			l.sizeFixups = append(l.sizeFixups, symAndSize{oldi, uint32(sz)})
+		}
+	default:
+		log.Fatalf("duplicated definition of symbol %s, from %s (type %s size %d) and %s (type %s size %d)", name, r.unit.Lib.Pkg, newtyp, sz, oldr.unit.Lib.Pkg, oldtyp, oldsz)
 	}
 	return oldi
 }
@@ -767,7 +823,15 @@ func (l *Loader) SymVersion(i Sym) int {
 		return pp.ver
 	}
 	r, li := l.toLocal(i)
-	return int(abiToVer(r.Sym(li).ABI(), r.version))
+	return abiToVer(r.Sym(li).ABI(), r.version)
+}
+
+func (l *Loader) IsContentHashed(i Sym) bool {
+	if l.IsExternal(i) {
+		return l.contentHashed[i]
+	}
+	r, li := l.toLocal(i)
+	return r.IsContentHashed(li)
 }
 
 func (l *Loader) IsFileLocal(i Sym) bool {
@@ -1071,6 +1135,18 @@ func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
 	}
 }
 
+// ForAllCgoExportStatic returns an iterator over all symbols
+// marked with the "cgo_export_static" compiler directive.
+func (l *Loader) ForAllCgoExportStatic() iter.Seq[Sym] {
+	return func(yield func(Sym) bool) {
+		for s := range l.attrCgoExportStatic {
+			if !yield(s) {
+				break
+			}
+		}
+	}
+}
+
 // IsGeneratedSym returns true if a symbol's been previously marked as a
 // generator symbol through the SetIsGeneratedSym. The functions for generator
 // symbols are kept in the Link context.
@@ -1300,9 +1376,6 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 	if int(i) >= len(l.align) {
 		l.align = append(l.align, make([]uint8, l.NSym()-len(l.align))...)
 	}
-	if align == 0 {
-		l.align[i] = 0
-	}
 	l.align[i] = uint8(bits.Len32(uint32(align)))
 }
 
@@ -1397,6 +1470,18 @@ func (l *Loader) SetSymExtname(i Sym, value string) {
 	} else {
 		l.extname[i] = value
 	}
+}
+
+func (l *Loader) SymWeakBinding(i Sym) bool {
+	return l.weakBinding[i]
+}
+
+func (l *Loader) SetSymWeakBinding(i Sym, v bool) {
+	// reject bad symbols
+	if i >= Sym(len(l.objSyms)) || i == 0 {
+		panic("bad symbol index in SetSymWeakBinding")
+	}
+	l.weakBinding[i] = v
 }
 
 // SymElfType returns the previously recorded ELF type for a symbol
@@ -2158,7 +2243,7 @@ type loadState struct {
 }
 
 type linknameVarRef struct {
-	pkg  string // package of reference (not definition)
+	pkg  *oReader // package of reference (not definition)
 	name string
 	sym  Sym
 }
@@ -2195,7 +2280,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		gi := st.addSym(name, v, r, i, kind, osym)
 		r.syms[i] = gi
-		if kind == nonPkgDef && osym.IsLinkname() && r.DataSize(i) == 0 && strings.Contains(name, ".") {
+		if kind == nonPkgDef && (osym.IsLinkname() || osym.IsLinknameStd()) && r.DataSize(i) == 0 && strings.Contains(name, ".") {
 			// This is a linknamed "var" "reference" (var x T with no data and //go:linkname x).
 			// We want to check if a linkname reference is allowed. Here we haven't loaded all
 			// symbol definitions, so we don't yet know all the push linknames. So we add to a
@@ -2206,7 +2291,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 			// This use of linkname is usually for referencing C symbols, so allow symbols
 			// with no "." in its name (not a regular Go symbol).
 			// Linkname is always a non-package reference.
-			st.linknameVarRefs = append(st.linknameVarRefs, linknameVarRef{r.unit.Lib.Pkg, name, gi})
+			st.linknameVarRefs = append(st.linknameVarRefs, linknameVarRef{r, name, gi})
 		}
 		if osym.Local() {
 			l.SetAttrLocal(gi, true)
@@ -2267,6 +2352,10 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 	for _, r := range l.objs[goObjStart:] {
 		loadObjRefs(l, r, arch)
 	}
+	for _, sf := range l.sizeFixups {
+		pp := l.cloneToExternal(sf.sym)
+		pp.size = int64(sf.size)
+	}
 	l.values = make([]int64, l.NSym(), l.NSym()+1000) // +1000 make some room for external symbols
 	l.outer = make([]Sym, l.NSym(), l.NSym()+1000)
 }
@@ -2280,12 +2369,12 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		v := abiToVer(osym.ABI(), r.version)
 		gi := l.LookupOrCreateSym(name, v)
 		r.syms[ndef+i] = gi
-		if osym.IsLinkname() {
+		if osym.IsLinkname() || osym.IsLinknameStd() || r.FromAssembly() {
 			// Check if a linkname reference is allowed.
 			// Only check references (pull), not definitions (push),
 			// so push is always allowed.
 			// Linkname is always a non-package reference.
-			l.checkLinkname(r.unit.Lib.Pkg, name, gi)
+			l.checkLinkname(r, name, gi)
 		}
 		if osym.Local() {
 			l.SetAttrLocal(gi, true)
@@ -2338,9 +2427,6 @@ func abiToVer(abi uint16, localSymVersion int) int {
 // If a name is in this map, it is allowed only in listed packages,
 // even if it has a linknamed definition.
 var blockedLinknames = map[string][]string{
-	// coroutines
-	"runtime.coroswitch": {"iter"},
-	"runtime.newcoro":    {"iter"},
 	// fips info
 	"go:fipsinfo": {"crypto/internal/fips140/check"},
 	// New internal linknames in Go 1.24
@@ -2351,10 +2437,10 @@ var blockedLinknames = map[string][]string{
 	"crypto/internal/sysrand.fatal":         {"crypto/internal/sysrand"},
 	"crypto/rand.fatal":                     {"crypto/rand"},
 	"internal/runtime/maps.errNilAssign":    {"internal/runtime/maps"},
-	"internal/runtime/maps.typeString":      {"internal/runtime/maps"},
 	"internal/runtime/maps.fatal":           {"internal/runtime/maps"},
 	"internal/runtime/maps.newarray":        {"internal/runtime/maps"},
 	"internal/runtime/maps.newobject":       {"internal/runtime/maps"},
+	"internal/runtime/maps.rand":            {"internal/runtime/maps"},
 	"internal/runtime/maps.typedmemclr":     {"internal/runtime/maps"},
 	"internal/runtime/maps.typedmemmove":    {"internal/runtime/maps"},
 	"internal/sync.fatal":                   {"internal/sync"},
@@ -2382,14 +2468,57 @@ var blockedLinknames = map[string][]string{
 	"runtime.mapdelete_fast32":   {"runtime"},
 	"runtime.mapdelete_fast64":   {"runtime"},
 	"runtime.mapdelete_faststr":  {"runtime"},
+	// New internal linknames in Go 1.25
+	// Pushed from runtime
+	"internal/cpu.riscvHWProbe":                      {"internal/cpu"},
+	"internal/runtime/cgroup.throw":                  {"internal/runtime/cgroup"},
+	"internal/runtime/maps.typeString":               {"internal/runtime/maps"},
+	"internal/synctest.IsInBubble":                   {"internal/synctest"},
+	"internal/synctest.associate":                    {"internal/synctest"},
+	"internal/synctest.disassociate":                 {"internal/synctest"},
+	"internal/synctest.isAssociated":                 {"internal/synctest"},
+	"runtime/trace.runtime_readTrace":                {"runtime/trace"},
+	"runtime/trace.runtime_traceClockUnitsPerSecond": {"runtime/trace"},
+	"sync_test.runtime_blockUntilEmptyCleanupQueue":  {"sync_test"},
+	"time.runtimeIsBubbled":                          {"time"},
+	"unique.runtime_blockUntilEmptyCleanupQueue":     {"unique"},
+	// Others
+	"net.newWindowsFile":                   {"net"},              // pushed from os
+	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
+	// New internal linknames in Go 1.26
+	// Pushed from runtime
+	"crypto/fips140.isBypassed":                    {"crypto/fips140"},
+	"crypto/fips140.setBypass":                     {"crypto/fips140"},
+	"crypto/fips140.unsetBypass":                   {"crypto/fips140"},
+	"crypto/subtle.setDITEnabled":                  {"crypto/subtle"},
+	"crypto/subtle.setDITDisabled":                 {"crypto/subtle"},
+	"internal/cpu.sysctlbynameBytes":               {"internal/cpu"},
+	"internal/cpu.sysctlbynameInt32":               {"internal/cpu"},
+	"runtime.pprof_goroutineLeakProfileWithLabels": {"runtime/pprof"},
+	"runtime/pprof.runtime_goroutineLeakGC":        {"runtime/pprof"},
+	"runtime/pprof.runtime_goroutineleakcount":     {"runtime/pprof"},
+	"runtime/secret.appendSignalStacks":            {"runtime/secret"},
+	"runtime/secret.count":                         {"runtime/secret"},
+	"runtime/secret.dec":                           {"runtime/secret"},
+	"runtime/secret.eraseSecrets":                  {"runtime/secret"},
+	"runtime/secret.getStack":                      {"runtime/secret"},
+	"runtime/secret.inc":                           {"runtime/secret"},
+	"syscall.rawsyscalln":                          {"syscall"},
+	"syscall.runtimeClearenv":                      {"syscall"},
+	"syscall.syscalln":                             {"syscall"},
+	// Others
+	"crypto/internal/rand.SetTestingReader": {"testing/cryptotest"}, // pushed from crypto/internal/rand
+	"testing.checkParallel":                 {"testing/cryptotest"}, // pushed from testing
+	"runtime.addmoduledata":                 {},                     // assembly symbol, disallow all packages
 }
 
-// check if a linkname reference to symbol s from pkg is allowed
-func (l *Loader) checkLinkname(pkg, name string, s Sym) {
+// check if a linkname reference to symbol s from refpkg is allowed
+func (l *Loader) checkLinkname(refpkg *oReader, name string, s Sym) {
 	if l.flags&FlagCheckLinkname == 0 {
 		return
 	}
 
+	pkg := refpkg.unit.Lib.Pkg
 	error := func() {
 		log.Fatalf("%s: invalid reference to %s", pkg, name)
 	}
@@ -2423,12 +2552,44 @@ func (l *Loader) checkLinkname(pkg, name string, s Sym) {
 		return
 	}
 	osym := r.Sym(li)
-	if osym.IsLinkname() || osym.ABIWrapper() {
+	if r.FromAssembly() && !osym.IsLinknameStd() && !osym.IsLinkname() {
+		if strings.HasPrefix(name, pkg) {
+			// Allow if by name it is pushed to pkg, e.g. in package a,
+			// an assembly function is defined as b.F, then it is allowed
+			// to be used in package b.
+			return
+		}
+		if !strings.Contains(name, ".") {
+			// Symbol without "." in its name is meant to be accessed
+			// in non-Go code. Usually non-Go access is not checked, but
+			// it can also be from Go code via assembly or linkname.
+			// Notable member of the hall of shame is
+			// github.com/ebitengine/purego accessing crosscall2.
+			return
+		}
+		// For an assembly symbol, check if there is a linkname applied
+		// to its ABI wrapper.
+		if !buildcfg.Experiment.RegabiWrappers {
+			// If ABI wrapper is not enabled (i.e. non-regabi platform),
+			// permit for now, as there is no good way to check.
+			return
+		}
+		otherABI := 1 - abiToVer(osym.ABI(), r.version) // for now, we only have ABI 0 and 1
+		w := l.Lookup(name, otherABI)                   // TODO: use an aux symbol instead of name lookup?
+		if w != 0 {
+			r, li = l.toLocal(w)
+			osym = r.Sym(li)
+		}
+	}
+	if osym.IsLinknameStd() {
+		// It is pushed with linknamestd. Allow only pulls from the
+		// standard library.
+		if refpkg.Std() {
+			return
+		}
+	}
+	if osym.IsLinkname() {
 		// Allow if the def has a linkname (push).
-		// ABI wrapper usually wraps an assembly symbol, a linknamed symbol,
-		// or an external symbol, or provide access of a Go symbol to assembly.
-		// For now, allow ABI wrappers.
-		// TODO: check the wrapped symbol?
 		return
 	}
 	error()
@@ -2465,7 +2626,7 @@ func topLevelSym(sname string, skind sym.SymKind) bool {
 // a symbol originally discovered as part of an object file, it's
 // easier to do this if we make the updates to an external symbol
 // payload.
-func (l *Loader) cloneToExternal(symIdx Sym) {
+func (l *Loader) cloneToExternal(symIdx Sym) *extSymPayload {
 	if l.IsExternal(symIdx) {
 		panic("sym is already external, no need for clone")
 	}
@@ -2517,6 +2678,11 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	// Some attributes were encoded in the object file. Copy them over.
 	l.SetAttrDuplicateOK(symIdx, r.Sym(li).Dupok())
 	l.SetAttrShared(symIdx, r.Shared())
+	if r.IsContentHashed(li) {
+		l.contentHashed[symIdx] = true
+	}
+
+	return pp
 }
 
 // Copy the payload of symbol src to dst. Both src and dst must be external
@@ -2671,15 +2837,15 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 				// We still need to record its presence in the current
 				// package, as the trampoline pass expects packages
 				// are laid out in dependency order.
-				lib.DupTextSyms = append(lib.DupTextSyms, sym.LoaderSym(gi))
+				lib.DupTextSyms = append(lib.DupTextSyms, gi)
 				continue // symbol in different object
 			}
 			if dupok {
-				lib.DupTextSyms = append(lib.DupTextSyms, sym.LoaderSym(gi))
+				lib.DupTextSyms = append(lib.DupTextSyms, gi)
 				continue
 			}
 
-			lib.Textp = append(lib.Textp, sym.LoaderSym(gi))
+			lib.Textp = append(lib.Textp, gi)
 		}
 	}
 
@@ -2692,7 +2858,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			lists := [2][]sym.LoaderSym{lib.Textp, lib.DupTextSyms}
 			for i, list := range lists {
 				for _, s := range list {
-					sym := Sym(s)
+					sym := s
 					if !assignedToUnit.Has(sym) {
 						textp = append(textp, sym)
 						unit := l.SymUnit(sym)
@@ -2733,7 +2899,7 @@ type ErrorReporter struct {
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...interface{}) {
+func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...any) {
 	if s != 0 && reporter.ldr.SymName(s) != "" {
 		// Note: Replace is needed here because symbol names might have % in them,
 		// due to the use of LinkString for names of instantiating types.
@@ -2752,7 +2918,7 @@ func (l *Loader) GetErrorReporter() *ErrorReporter {
 }
 
 // Errorf method logs an error message. See ErrorReporter.Errorf for details.
-func (l *Loader) Errorf(s Sym, format string, args ...interface{}) {
+func (l *Loader) Errorf(s Sym, format string, args ...any) {
 	l.errorReporter.Errorf(s, format, args...)
 }
 

@@ -36,7 +36,7 @@
 //     any empty array, slice, map, or string. In contrast, v2 redefines
 //     `omitempty` to omit a field if it encodes as an "empty" JSON value,
 //     which is defined as a JSON null, or an empty JSON string, object, or array.
-//     The [OmitEmptyWithLegacyDefinition] option controls this behavior difference.
+//     The [OmitEmptyWithLegacySemantics] option controls this behavior difference.
 //     Note that `omitempty` behaves identically in both v1 and v2 for a
 //     Go array, slice, map, or string (assuming no user-defined MarshalJSON method
 //     overrides the default representation). Existing usages of `omitempty` on a
@@ -44,20 +44,18 @@
 //     `omitzero` instead (which is identically supported in both v1 and v2).
 //
 //   - In v1, a Go struct field marked as `string` can be used to quote a
-//     Go string, bool, or number as a JSON string. It does not recursively
-//     take effect on composite Go types. In contrast, v2 restricts
-//     the `string` option to only quote a Go number as a JSON string.
-//     It does recursively take effect on Go numbers within a composite Go type.
+//     Go string, bool, number, or pointer to such as a JSON string.
+//     In contrast, v2 restricts the `string` option to only quote a value
+//     that would normally be represented as a JSON number,
+//     but also expands support for it to operate with any Go type
+//     that would normally be represented as a JSON number.
 //     The [StringifyWithLegacySemantics] option controls this behavior difference.
 //
 //   - In v1, a nil Go slice or Go map is marshaled as a JSON null.
 //     In contrast, v2 marshals a nil Go slice or Go map as
 //     an empty JSON array or JSON object, respectively.
 //     The [jsonv2.FormatNilSliceAsNull] and [jsonv2.FormatNilMapAsNull] options
-//     control this behavior difference. To explicitly specify a Go struct field
-//     to use a particular representation for nil, either the `format:emitempty`
-//     or `format:emitnull` field option can be specified.
-//     Field-specified options take precedence over caller-specified options.
+//     control this behavior difference.
 //
 //   - In v1, a Go array may be unmarshaled from a JSON array of any length.
 //     In contrast, in v2 a Go array must be unmarshaled from a JSON array
@@ -66,10 +64,7 @@
 //
 //   - In v1, a Go byte array is represented as a JSON array of JSON numbers.
 //     In contrast, in v2 a Go byte array is represented as a Base64-encoded JSON string.
-//     The [FormatBytesWithLegacySemantics] option controls this behavior difference.
-//     To explicitly specify a Go struct field to use a particular representation,
-//     either the `format:array` or `format:base64` field option can be specified.
-//     Field-specified options take precedence over caller-specified options.
+//     The [FormatByteArrayAsArray] option controls this behavior difference.
 //
 //   - In v1, MarshalJSON methods declared on a pointer receiver are only called
 //     if the Go value is addressable. In contrast, in v2 a MarshalJSON method
@@ -118,12 +113,8 @@
 //
 //   - In v1, a [time.Duration] is represented as a JSON number containing
 //     the decimal number of nanoseconds. In contrast, in v2 a [time.Duration]
-//     is represented as a JSON string containing the formatted duration
-//     (e.g., "1h2m3.456s") according to [time.Duration.String].
-//     The [FormatTimeWithLegacySemantics] option controls this behavior difference.
-//     To explicitly specify a Go struct field to use a particular representation,
-//     either the `format:nano` or `format:units` field option can be specified.
-//     Field-specified options take precedence over caller-specified options.
+//     has no default representation and results in a runtime error.
+//     The [FormatDurationAsNano] option controls this behavior difference.
 //
 //   - In v1, errors are never reported at runtime for Go struct types
 //     that have some form of structural error (e.g., a malformed tag option).
@@ -172,6 +163,9 @@
 // but the v1 package will forever remain supported.
 package json
 
+// TODO(https://go.dev/issue/71631): Update the "Migrating to v2" documentation
+// with default v2 behavior for [time.Duration].
+
 import (
 	"encoding"
 
@@ -204,12 +198,14 @@ type Options = jsonopts.Options
 // It is equivalent to the following boolean options being set to true:
 //
 //   - [CallMethodsWithLegacySemantics]
-//   - [EscapeInvalidUTF8]
+//   - [FormatByteArrayAsArray]
 //   - [FormatBytesWithLegacySemantics]
-//   - [FormatTimeWithLegacySemantics]
+//   - [FormatDurationAsNano]
 //   - [MatchCaseSensitiveDelimiter]
 //   - [MergeWithLegacySemantics]
-//   - [OmitEmptyWithLegacyDefinition]
+//   - [OmitEmptyWithLegacySemantics]
+//   - [ParseBytesWithLooseRFC4648]
+//   - [ParseTimeWithLooseRFC3339]
 //   - [ReportErrorsWithLegacySemantics]
 //   - [StringifyWithLegacySemantics]
 //   - [UnmarshalArrayFromAnyLength]
@@ -221,11 +217,9 @@ type Options = jsonopts.Options
 //   - [jsontext.AllowInvalidUTF8]
 //   - [jsontext.EscapeForHTML]
 //   - [jsontext.EscapeForJS]
-//   - [jsontext.PreserveRawString]
+//   - [jsontext.PreserveRawStrings]
 //
-// All other boolean options are set to false.
-// All non-boolean options are set to the zero value,
-// except for [jsontext.WithIndent], which defaults to "\t".
+// All other options are not present.
 //
 // The [Marshal] and [Unmarshal] functions in this package are
 // semantically identical to calling the v2 equivalents with this option:
@@ -279,29 +273,22 @@ func CallMethodsWithLegacySemantics(v bool) Options {
 	}
 }
 
-// EscapeInvalidUTF8 specifies that when encoding a [jsontext.String]
-// with bytes of invalid UTF-8, such bytes are escaped as
-// a hexadecimal Unicode codepoint (i.e., \ufffd).
-// In contrast, the v2 default is to use the minimal representation,
-// which is to encode invalid UTF-8 as the Unicode replacement rune itself
-// (without any form of escaping).
+// FormatByteArrayAsArray specifies that a Go [N]byte is
+// formatted as a normal Go array in contrast to the v2 default of
+// formatting [N]byte as using binary data encoding (RFC 4648).
 //
-// This only affects encoding and is ignored when decoding.
+// This affects either marshaling or unmarshaling.
 // The v1 default is true.
-func EscapeInvalidUTF8(v bool) Options {
+func FormatByteArrayAsArray(v bool) Options {
 	if v {
-		return jsonflags.EscapeInvalidUTF8 | 1
+		return jsonflags.FormatByteArrayAsArray | 1
 	} else {
-		return jsonflags.EscapeInvalidUTF8 | 0
+		return jsonflags.FormatByteArrayAsArray | 0
 	}
 }
 
 // FormatBytesWithLegacySemantics specifies that handling of
 // []~byte and [N]~byte types follow legacy semantics:
-//
-//   - A Go [N]~byte is always treated as as a normal Go array
-//     in contrast to the v2 default of treating [N]byte as
-//     using some form of binary data encoding (RFC 4648).
 //
 //   - A Go []~byte is to be treated as using some form of
 //     binary data encoding (RFC 4648) in contrast to the v2 default
@@ -317,12 +304,6 @@ func EscapeInvalidUTF8(v bool) Options {
 //     In contrast, the v2 default is to report an error unmarshaling
 //     a JSON array when expecting some form of binary data encoding.
 //
-//   - When unmarshaling, '\r' and '\n' characters are ignored
-//     within the encoded "base32" and "base64" data.
-//     In contrast, the v2 default is to report an error in order to be
-//     strictly compliant with RFC 4648, section 3.3,
-//     which specifies that non-alphabet characters must be rejected.
-//
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
 func FormatBytesWithLegacySemantics(v bool) Options {
@@ -333,29 +314,18 @@ func FormatBytesWithLegacySemantics(v bool) Options {
 	}
 }
 
-// FormatTimeWithLegacySemantics specifies that [time] types are formatted
-// with legacy semantics:
-//
-//   - When marshaling or unmarshaling, a [time.Duration] is formatted as
-//     a JSON number representing the number of nanoseconds.
-//     In contrast, the default v2 behavior uses a JSON string
-//     with the duration formatted with [time.Duration.String].
-//     If a duration field has a `format` tag option,
-//     then the specified formatting takes precedence.
-//
-//   - When unmarshaling, a [time.Time] follows loose adherence to RFC 3339.
-//     In particular, it permits historically incorrect representations,
-//     allowing for deviations in hour format, sub-second separator,
-//     and timezone representation. In contrast, the default v2 behavior
-//     is to strictly comply with the grammar specified in RFC 3339.
+// FormatDurationAsNano specifies that a [time.Duration] is
+// formatted as a JSON number representing the number of nanoseconds
+// in contrast to the v2 default of reporting an error.
 //
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
-func FormatTimeWithLegacySemantics(v bool) Options {
+func FormatDurationAsNano(v bool) Options {
+	// TODO(https://go.dev/issue/71631): Update documentation with v2 behavior.
 	if v {
-		return jsonflags.FormatTimeWithLegacySemantics | 1
+		return jsonflags.FormatDurationAsNano | 1
 	} else {
-		return jsonflags.FormatTimeWithLegacySemantics | 0
+		return jsonflags.FormatDurationAsNano | 0
 	}
 }
 
@@ -364,7 +334,7 @@ func FormatTimeWithLegacySemantics(v bool) Options {
 // occurs under [jsonv2.MatchCaseInsensitiveNames] or the `case:ignore` tag option.
 // Thus, case-insensitive name matching is identical to [strings.EqualFold].
 // Use of this option diminishes the ability of case-insensitive matching
-// to be able to match common case variants (e.g, "foo_bar" with "fooBar").
+// to be able to match common case variants (e.g., "foo_bar" with "fooBar").
 //
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
@@ -389,6 +359,9 @@ func MatchCaseSensitiveDelimiter(v bool) Options {
 //     the original Go value for array elements, slice elements,
 //     struct fields (but not map values),
 //     pointer values, and interface values (only if a non-nil pointer).
+//     For slices, it will merge into the pre-existing value of slice elements
+//     even for those past the slice length. If the original slice length
+//     was longer than the JSON array, then it is truncated to match.
 //     In contrast, the default v2 behavior is to merge into the Go value
 //     for struct fields, map values, pointer values, and interface values.
 //     In general, the v2 semantic merges when unmarshaling a JSON object,
@@ -404,7 +377,7 @@ func MergeWithLegacySemantics(v bool) Options {
 	}
 }
 
-// OmitEmptyWithLegacyDefinition specifies that the `omitempty` tag option
+// OmitEmptyWithLegacySemantics specifies that the `omitempty` tag option
 // follows a definition of empty where a field is omitted if the Go value is
 // false, 0, a nil pointer, a nil interface value,
 // or any empty array, slice, map, or string.
@@ -413,16 +386,50 @@ func MergeWithLegacySemantics(v bool) Options {
 //
 // The v1 and v2 definitions of `omitempty` are practically the same for
 // Go strings, slices, arrays, and maps. Usages of `omitempty` on
-// Go bools, ints, uints floats, pointers, and interfaces should migrate to use
+// Go bools, ints, uints, floats, pointers, and interfaces should migrate to use
 // the `omitzero` tag option, which omits a field if it is the zero Go value.
 //
 // This only affects marshaling and is ignored when unmarshaling.
 // The v1 default is true.
-func OmitEmptyWithLegacyDefinition(v bool) Options {
+func OmitEmptyWithLegacySemantics(v bool) Options {
 	if v {
-		return jsonflags.OmitEmptyWithLegacyDefinition | 1
+		return jsonflags.OmitEmptyWithLegacySemantics | 1
 	} else {
-		return jsonflags.OmitEmptyWithLegacyDefinition | 0
+		return jsonflags.OmitEmptyWithLegacySemantics | 0
+	}
+}
+
+// ParseBytesWithLooseRFC4648 specifies that when parsing
+// binary data encoded as "base32" or "base64",
+// to ignore the presence of '\r' and '\n' characters.
+// In contrast, the v2 default is to report an error in order to be
+// strictly compliant with RFC 4648, section 3.3,
+// which specifies that non-alphabet characters must be rejected.
+//
+// This only affects unmarshaling and is ignored when marshaling.
+// The v1 default is true.
+func ParseBytesWithLooseRFC4648(v bool) Options {
+	if v {
+		return jsonflags.ParseBytesWithLooseRFC4648 | 1
+	} else {
+		return jsonflags.ParseBytesWithLooseRFC4648 | 0
+	}
+}
+
+// ParseTimeWithLooseRFC3339 specifies that a [time.Time]
+// parses according to loose adherence to RFC 3339.
+// In particular, it permits historically incorrect representations,
+// allowing for deviations in hour format, sub-second separator,
+// and timezone representation. In contrast, the default v2 behavior
+// is to strictly comply with the grammar specified in RFC 3339.
+//
+// This only affects unmarshaling and is ignored when marshaling.
+// The v1 default is true.
+func ParseTimeWithLooseRFC3339(v bool) Options {
+	if v {
+		return jsonflags.ParseTimeWithLooseRFC3339 | 1
+	} else {
+		return jsonflags.ParseTimeWithLooseRFC3339 | 0
 	}
 }
 
@@ -481,16 +488,23 @@ func ReportErrorsWithLegacySemantics(v bool) Options {
 // StringifyWithLegacySemantics specifies that the `string` tag option
 // may stringify bools and string values. It only takes effect on fields
 // where the top-level type is a bool, string, numeric kind, or a pointer to
-// such a kind. Specifically, `string` will not stringify bool, string,
-// or numeric kinds within a composite data type
-// (e.g., array, slice, struct, map, or interface).
+// such a kind. In contrast, the v2 default only allows the `string` tag option
+// on Go types that would have otherwise serialized as a JSON number,
+// and stringifies the JSON number within a JSON string. In particular,
+// the v2 default does not stringify Go bools and strings.
+// If [ReportErrorsWithLegacySemantics] is false,
+// then incorrect usages of `string` results in a runtime error.
 //
-// When marshaling, such Go values are serialized as their usual
-// JSON representation, but quoted within a JSON string.
-// When unmarshaling, such Go values must be deserialized from
-// a JSON string containing their usual JSON representation.
+// When marshaling, such Go values are serialized as their usual JSON
+// representation, but quoted within a JSON string.
+// When unmarshaling, such Go values must be deserialized from a JSON string
+// containing their usual JSON representation or Go number representation for
+// that numeric kind.
+// Note that the Go number grammar is a superset of the JSON number grammar.
 // A JSON null quoted in a JSON string is a valid substitute for JSON null
 // while unmarshaling into a Go value that `string` takes effect on.
+// In contrast, the v2 default rejects stringified numbers outside of the
+// grammar for a JSON number and also rejects a JSON null quoted in a JSON string.
 //
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
@@ -506,6 +520,8 @@ func StringifyWithLegacySemantics(v bool) Options {
 // from input JSON arrays of any length. If the JSON array is too short,
 // then the remaining Go array elements are zeroed. If the JSON array
 // is too long, then the excess JSON array elements are skipped over.
+// In contrast, the v2 default expects that Go arrays be unmarshaled
+// from input JSON arrays of the exact same length.
 //
 // This only affects unmarshaling and is ignored when marshaling.
 // The v1 default is true.

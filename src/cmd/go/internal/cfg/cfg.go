@@ -227,6 +227,8 @@ func ForceHost() {
 	// Recompute the build context using Goos and Goarch to
 	// set the correct value for ctx.CgoEnabled.
 	BuildContext = defaultContext()
+	// Call SetGOROOT to properly set the GOROOT on the new context.
+	SetGOROOT(Getenv("GOROOT"), false)
 	// Recompute experiments: the settings determined depend on GOOS and GOARCH.
 	// This will also update the BuildContext's tool tags to include the new
 	// experiment tags.
@@ -458,7 +460,7 @@ var (
 	GOROOTpkg string
 	GOROOTsrc string
 
-	GOBIN                           = Getenv("GOBIN")
+	GOBIN, GOBINChanged             = EnvOrAndChanged("GOBIN", "")
 	GOCACHEPROG, GOCACHEPROGChanged = EnvOrAndChanged("GOCACHEPROG", "")
 	GOMODCACHE, GOMODCACHEChanged   = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
 

@@ -62,11 +62,11 @@ var Go = &Command{
 // Lookup returns the subcommand with the given name, if any.
 // Otherwise it returns nil.
 //
-// Lookup ignores subcommands that have len(c.Commands) == 0 and c.Run == nil.
+// Lookup ignores any subcommand `sub` that has len(sub.Commands) == 0 and sub.Run == nil.
 // Such subcommands are only for use as arguments to "help".
 func (c *Command) Lookup(name string) *Command {
 	for _, sub := range c.Commands {
-		if sub.Name() == name && (len(c.Commands) > 0 || c.Runnable()) {
+		if sub.Name() == name && (len(sub.Commands) > 0 || sub.Runnable()) {
 			return sub
 		}
 	}
@@ -175,6 +175,8 @@ func Fatal(err error) {
 var exitStatus = 0
 var exitMu sync.Mutex
 
+// SetExitStatus sets exit status to n if
+// n is higher than the current exit status.
 func SetExitStatus(n int) {
 	exitMu.Lock()
 	if exitStatus < n {
@@ -183,6 +185,7 @@ func SetExitStatus(n int) {
 	exitMu.Unlock()
 }
 
+// GetExitStatus reports the current exit status.
 func GetExitStatus() int {
 	return exitStatus
 }
@@ -191,20 +194,28 @@ func GetExitStatus() int {
 // connected to the go command's own stdout and stderr.
 // If the command fails, Run reports the error using Errorf.
 func Run(cmdargs ...any) {
+	if err := RunErr(cmdargs...); err != nil {
+		Errorf("%v", err)
+	}
+}
+
+// Run runs the command, with stdout and stderr
+// connected to the go command's own stdout and stderr.
+// If the command fails, RunErr returns the error, which
+// may be an *exec.ExitError.
+func RunErr(cmdargs ...any) error {
 	cmdline := str.StringList(cmdargs...)
 	if cfg.BuildN || cfg.BuildX {
 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
 		if cfg.BuildN {
-			return
+			return nil
 		}
 	}
 
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		Errorf("%v", err)
-	}
+	return cmd.Run()
 }
 
 // RunStdin is like run but connects Stdin. It retries if it encounters an ETXTBSY.

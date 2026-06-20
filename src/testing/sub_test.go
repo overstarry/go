@@ -219,8 +219,12 @@ func TestTRun(t *T) {
 ^V--- SKIP: chatty with recursion and json/#00/#01 (N.NNs)
 ^V=== NAME  chatty with recursion and json/#00
 ^V=== RUN   chatty with recursion and json/#00/#02
-    sub_test.go:NNN: fail
+^O    sub_test.go:NNN: fail^N
 ^V--- FAIL: chatty with recursion and json/#00/#02 (N.NNs)
+^V=== NAME  chatty with recursion and json/#00
+^V=== RUN   chatty with recursion and json/#00/#03
+^O    sub_test.go:NNN: ^[^O^[^N^[^[^N
+^V--- FAIL: chatty with recursion and json/#00/#03 (N.NNs)
 ^V=== NAME  chatty with recursion and json/#00
 ^V--- FAIL: chatty with recursion and json/#00 (N.NNs)
 ^V=== NAME  chatty with recursion and json
@@ -231,6 +235,7 @@ func TestTRun(t *T) {
 				t.Run("", func(t *T) {})
 				t.Run("", func(t *T) { t.Skip("skip") })
 				t.Run("", func(t *T) { t.Fatal("fail") })
+				t.Run("", func(t *T) { t.Error(string(markErrBegin) + string(markErrEnd) + string(markEscape)) })
 			})
 		},
 	}, {
@@ -280,7 +285,6 @@ func TestTRun(t *T) {
 					t.Run("c", func(t *T) {
 						t.Parallel()
 					})
-
 				})
 			})
 		},
@@ -305,7 +309,6 @@ func TestTRun(t *T) {
 									time.Sleep(time.Nanosecond)
 								})
 							}
-
 						})
 					}
 				})
@@ -503,6 +506,100 @@ func TestTRun(t *T) {
 				t2.FailNow()
 			})
 		},
+	}, {
+		desc: "buffered output gets flushed at test end",
+		ok:   false,
+		output: `
+--- FAIL: buffered output gets flushed at test end (N.NNs)
+    --- FAIL: buffered output gets flushed at test end/#00 (N.NNs)
+        a
+        b`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
+				t.Fail()
+			})
+		},
+	}, {
+		desc:   "output with chatty",
+		ok:     true,
+		chatty: true,
+		output: `
+=== RUN   output with chatty
+=== RUN   output with chatty/#00
+    a
+    b
+--- PASS: output with chatty (N.NNs)
+    --- PASS: output with chatty/#00 (N.NNs)`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
+			})
+		},
+	}, {
+		desc:   "output with chatty and json",
+		ok:     true,
+		chatty: true,
+		json:   true,
+		output: `
+^V=== RUN   output with chatty and json
+^V=== RUN   output with chatty and json/#00
+    a
+    b
+^V--- PASS: output with chatty and json/#00 (N.NNs)
+^V=== NAME  output with chatty and json
+^V--- PASS: output with chatty and json (N.NNs)
+^V=== NAME
+`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
+			})
+		},
+	}, {
+		desc: "output in finished sub test outputs to parent",
+		ok:   false,
+		output: `
+		--- FAIL: output in finished sub test outputs to parent (N.NNs)
+    message2
+    message1
+    sub_test.go:NNN: error`,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Output().Write([]byte("message1\n"))
+					ch <- true
+				}()
+			})
+			t.Output().Write([]byte("message2\n"))
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
+	}, {
+		desc: "newline between buffered log and log",
+		ok:   false,
+		output: `
+--- FAIL: newline between buffered log and log (N.NNs)
+    --- FAIL: newline between buffered log and log/#00 (N.NNs)
+        buffered message
+        sub_test.go:NNN: log`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				o := t.Output()
+				o.Write([]byte("buffered message"))
+				t.Log("log")
+				t.Fail()
+			})
+		},
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
@@ -537,7 +634,7 @@ func TestTRun(t *T) {
 			want := strings.TrimSpace(tc.output)
 			re := makeRegexp(want)
 			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-				t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+				t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, notateOutput(got), want)
 			}
 		})
 	}
@@ -731,11 +828,25 @@ func TestBRun(t *T) {
 	}
 }
 
+// makeRegexp transforms a line in the text notation to a pattern.
 func makeRegexp(s string) string {
 	s = regexp.QuoteMeta(s)
-	s = strings.ReplaceAll(s, "^V", "\x16")
+	s = strings.ReplaceAll(s, "^V", string(markFraming))
+	s = strings.ReplaceAll(s, "^O", string(markErrBegin))
+	s = strings.ReplaceAll(s, "^N", string(markErrEnd))
+	s = strings.ReplaceAll(s, "^\\[", string(markEscape))
 	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d\d?:`)
 	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
+	return s
+}
+
+// notateOutput transforms an output line into something more easily comparable
+// to text notation.
+func notateOutput(s string) string {
+	s = strings.ReplaceAll(s, string(markFraming), "^V")
+	s = strings.ReplaceAll(s, string(markErrBegin), "^O")
+	s = strings.ReplaceAll(s, string(markErrEnd), "^N")
+	s = strings.ReplaceAll(s, string(markEscape), "^[")
 	return s
 }
 
@@ -747,7 +858,7 @@ func TestBenchmarkOutput(t *T) {
 }
 
 func TestBenchmarkStartsFrom1(t *T) {
-	var first = true
+	first := true
 	Benchmark(func(b *B) {
 		if first && b.N != 1 {
 			panic(fmt.Sprintf("Benchmark() first N=%v; want 1", b.N))
@@ -757,7 +868,7 @@ func TestBenchmarkStartsFrom1(t *T) {
 }
 
 func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
-	var first = true
+	first := true
 	Benchmark(func(b *B) {
 		if first && (b.startAllocs == 0 || b.startBytes == 0) {
 			panic("ReadMemStats not called before first run")
@@ -840,7 +951,7 @@ func TestLogAfterComplete(t *T) {
 					}
 					s, ok := p.(string)
 					if !ok {
-						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
+						c2 <- fmt.Sprintf("subtest panic with unexpected value %v of type %T", p, p)
 						return
 					}
 					const want = "Log in goroutine after TestLateLog has completed: log after test"
@@ -896,7 +1007,6 @@ func TestConcurrentCleanup(t *T) {
 		var wg sync.WaitGroup
 		wg.Add(2)
 		for i := 0; i < 2; i++ {
-			i := i
 			go func() {
 				t.Cleanup(func() {
 					// Although the calls to Cleanup are concurrent, the functions passed
@@ -987,5 +1097,190 @@ func TestNestedCleanup(t *T) {
 	})
 	if ranCleanup != 3 {
 		t.Errorf("unexpected cleanup count: got %d want 3", ranCleanup)
+	}
+}
+
+// TestOutput checks that log messages are written,
+// formatted and buffered as expected by Output. It
+// checks both the chatty and non-chatty cases.
+func TestOutput(t *T) {
+	tstate := newTestState(1, allMatcher())
+	root := &T{
+		tstate: tstate,
+	}
+	root.setOutputWriter()
+	o := root.Output()
+
+	// Chatty case
+	tstateChatty := newTestState(1, allMatcher())
+	bufChatty := &strings.Builder{}
+	rootChatty := &T{
+		common: common{
+			w: bufChatty,
+		},
+		tstate: tstateChatty,
+	}
+	rootChatty.setOutputWriter()
+	rootChatty.chatty = newChattyPrinter(rootChatty.w)
+	oChatty := rootChatty.Output()
+
+	testCases := []struct {
+		in  string
+		out string
+		buf string
+	}{{
+		in:  "a",
+		out: "",
+		buf: "a",
+	}, {
+		in:  "b",
+		out: "",
+		buf: "ab",
+	}, {
+		in:  "\n",
+		out: "    ab\n",
+		buf: "",
+	}, {
+		in:  "\nc",
+		out: "    ab\n    \n",
+		buf: "c",
+	}, {
+		in:  "d",
+		out: "    ab\n    \n",
+		buf: "cd",
+	}}
+	for _, tc := range testCases {
+		o.Write([]byte(tc.in))
+		if string(root.output) != tc.out {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", root.output, tc.out)
+		}
+		if string(root.o.partial) != tc.buf {
+			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", root.o.partial, tc.buf)
+		}
+
+		// Chatty case
+		oChatty.Write([]byte(tc.in))
+		if got := bufChatty.String(); got != tc.out {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, tc.out)
+		}
+	}
+}
+
+// TestOutputAfterComplete ensures that Output panics
+// if called after a test function returns.
+func TestOutputAfterComplete(t *T) {
+	tstate := newTestState(1, allMatcher())
+	var buf bytes.Buffer
+	t1 := &T{
+		common: common{
+			// Use a buffered channel so that tRunner can write
+			// to it although nothing is reading from it.
+			signal: make(chan bool, 1),
+			w:      &buf,
+		},
+		tstate: tstate,
+	}
+
+	c1 := make(chan bool)
+	c2 := make(chan string)
+	tRunner(t1, func(t *T) {
+		t.Run("TestLateOutput", func(t *T) {
+			go func() {
+				defer close(c2)
+				defer func() {
+					p := recover()
+					if p == nil {
+						c2 <- "subtest did not panic"
+						return
+					}
+					s, ok := p.(string)
+					if !ok {
+						c2 <- fmt.Sprintf("subtest panic with unexpected value %v of type %T", p, p)
+						return
+					}
+					const want = "Output called after TestLateOutput has completed"
+					if !strings.Contains(s, want) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
+					}
+				}()
+
+				<-c1
+				t.Output()
+			}()
+		})
+	})
+	close(c1)
+
+	if s := <-c2; s != "" {
+		t.Error(s)
+	}
+}
+
+// TestOutputWriteAfterComplete ensures that Write panics
+// if called on t.Output() of a finished test t.
+func TestOutputWriteAfterComplete(t *T) {
+	tstate := newTestState(1, allMatcher())
+	var buf bytes.Buffer
+	t1 := &T{
+		common: common{
+			// Use a buffered channel so that tRunner can write
+			// to it although nothing is reading from it.
+			signal: make(chan bool, 1),
+			w:      &buf,
+		},
+		tstate: tstate,
+	}
+
+	c1 := make(chan bool)
+	c2 := make(chan string)
+	tRunner(t1, func(t *T) {
+		t.Run("TestLateWrite", func(t *T) {
+			o := t.Output()
+			go func() {
+				defer close(c2)
+				defer func() {
+					p := recover()
+					if p == nil {
+						c2 <- "subtest did not panic"
+						return
+					}
+					s, ok := p.(string)
+					if !ok {
+						c2 <- fmt.Sprintf("subtest panic with unexpected value %v of type %T", p, p)
+						return
+					}
+					const want = "Write called after TestLateWrite has completed"
+					if !strings.Contains(s, want) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
+					}
+				}()
+
+				<-c1
+				o.Write([]byte("write after test"))
+			}()
+		})
+	})
+	close(c1)
+
+	if s := <-c2; s != "" {
+		t.Error(s)
+	}
+}
+
+// Verify that logging to an inactive top-level testing.T does not panic.
+// These tests can run in either order.
+
+func TestOutputEscape1(t *T) { testOutputEscape(t) }
+func TestOutputEscape2(t *T) { testOutputEscape(t) }
+
+var global *T
+
+func testOutputEscape(t *T) {
+	if global == nil {
+		// Store t in a global, to set up for the second execution.
+		global = t
+	} else {
+		// global is inactive here.
+		global.Log("hello")
 	}
 }

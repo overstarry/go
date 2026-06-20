@@ -3,9 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package maphash provides hash functions on byte sequences and comparable values.
-// These hash functions are intended to be used to implement hash tables or
-// other data structures that need to map arbitrary strings or byte
-// sequences to a uniform distribution on unsigned 64-bit integers.
+// It also defines [Hasher], the interface between a hash function and a hash table.
+//
+// These hash functions are intended to be used to implement hash
+// tables, Bloom filters, and other data structures that need to map
+// arbitrary strings or byte sequences to a uniform distribution on
+// unsigned 64-bit integers.
+//
 // Each different instance of a hash table or data structure should use its own [Seed].
 //
 // The hash functions are not cryptographically secure.
@@ -13,8 +17,10 @@
 package maphash
 
 import (
-	"internal/byteorder"
-	"math"
+	"hash"
+	"internal/abi"
+	"internal/runtime/maps"
+	"unsafe"
 )
 
 // A Seed is a random value that selects the specific hash function
@@ -80,7 +86,7 @@ func String(seed Seed, s string) uint64 {
 //
 // The zero Hash is a valid Hash ready to use.
 // A zero Hash chooses a random seed for itself during
-// the first call to a Reset, Write, Seed, or Sum64 method.
+// the first call to a Reset, Write, Seed, Clone, or Sum64 method.
 // For control over the seed, use SetSeed.
 //
 // The computed hash values depend only on the initial seed and
@@ -281,31 +287,25 @@ func (h *Hash) Size() int { return 8 }
 // BlockSize returns h's block size.
 func (h *Hash) BlockSize() int { return len(h.buf) }
 
+// Clone implements [hash.Cloner].
+func (h *Hash) Clone() (hash.Cloner, error) {
+	h.initSeed()
+	r := *h
+	return &r, nil
+}
+
 // Comparable returns the hash of comparable value v with the given seed
 // such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
 // If v != v, then the resulting hash is randomly distributed.
 func Comparable[T comparable](seed Seed, v T) uint64 {
-	escapeForHash(v)
+	abi.EscapeNonString(v)
 	return comparableHash(v, seed)
 }
 
-// escapeForHash forces v to be on the heap, if v contains a
-// non-string pointer. We cannot hash pointers to local variables,
-// as the address of the local variable might change on stack growth.
-// Strings are okay as the hash depends on only the content, not
-// the pointer.
-//
-// This is essentially
-//
-//	if hasNonStringPointers(T) { abi.Escape(v) }
-//
-// Implemented as a compiler intrinsic.
-func escapeForHash[T comparable](v T) { panic("intrinsic") }
-
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
-	escapeForHash(x)
-	// writeComparable (not in purego mode) directly operates on h.state
+	abi.EscapeNonString(x)
+	// writeComparable directly operates on h.state
 	// without using h.buf. Mix in the buffer length so it won't
 	// commute with a buffered write, which either changes h.n or changes
 	// h.state.
@@ -315,24 +315,51 @@ func WriteComparable[T comparable](h *Hash, x T) {
 	writeComparable(h, x)
 }
 
-func (h *Hash) float64(f float64) {
-	if f == 0 {
-		h.WriteByte(0)
-		return
+//go:linkname runtime_rand runtime.rand
+func runtime_rand() uint64
+
+//go:linkname runtime_memhash runtime.memhash
+//go:noescape
+func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
+
+func rthash(buf []byte, seed uint64) uint64 {
+	if len(buf) == 0 {
+		return seed
 	}
-	var buf [8]byte
-	if f != f {
-		byteorder.LEPutUint64(buf[:], randUint64())
-		h.Write(buf[:])
-		return
+	len := len(buf)
+	// The runtime hasher only works on uintptr. For 64-bit
+	// architectures, we use the hasher directly. Otherwise,
+	// we use two parallel hashers on the lower and upper 32 bits.
+	if maps.Use64BitHash {
+		return uint64(runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed), uintptr(len)))
 	}
-	byteorder.LEPutUint64(buf[:], math.Float64bits(f))
-	h.Write(buf[:])
+	lo := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(uint32(seed)), uintptr(len))
+	hi := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed>>32), uintptr(len))
+	return uint64(hi)<<32 | uint64(lo)
 }
 
-func btoi(b bool) byte {
-	if b {
-		return 1
+func rthashString(s string, state uint64) uint64 {
+	buf := unsafe.Slice(unsafe.StringData(s), len(s))
+	return rthash(buf, state)
+}
+
+func randUint64() uint64 {
+	return runtime_rand()
+}
+
+func comparableHash[T comparable](v T, seed Seed) uint64 {
+	s := seed.s
+	var m map[T]struct{}
+	mTyp := abi.TypeOf(m)
+	hasher := (*abi.MapType)(unsafe.Pointer(mTyp)).Hasher
+	if maps.Use64BitHash {
+		return uint64(hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s)))
 	}
-	return 0
+	lo := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(uint32(s)))
+	hi := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s>>32))
+	return uint64(hi)<<32 | uint64(lo)
+}
+
+func writeComparable[T comparable](h *Hash, v T) {
+	h.state.s = comparableHash(v, h.state)
 }

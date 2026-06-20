@@ -38,8 +38,8 @@ func canUseConnectEx(net string) bool {
 	return false
 }
 
-func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error) {
-	ret := &netFD{
+func newFD(sysfd syscall.Handle, family, sotype int, net string) *netFD {
+	return &netFD{
 		pfd: poll.FD{
 			Sysfd:         sysfd,
 			IsStream:      sotype == syscall.SOCK_STREAM,
@@ -49,7 +49,6 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 		sotype: sotype,
 		net:    net,
 	}
-	return ret, nil
 }
 
 func (fd *netFD) init() error {
@@ -211,13 +210,9 @@ func (fd *netFD) accept() (*netFD, error) {
 	}
 
 	// Associate our new socket with IOCP.
-	netfd, err := newFD(s, fd.family, fd.sotype, fd.net)
-	if err != nil {
-		poll.CloseFunc(s)
-		return nil, err
-	}
+	netfd := newFD(s, fd.family, fd.sotype, fd.net)
 	if err := netfd.init(); err != nil {
-		fd.Close()
+		netfd.Close()
 		return nil, err
 	}
 
@@ -233,6 +228,9 @@ func (fd *netFD) accept() (*netFD, error) {
 	return netfd, nil
 }
 
+// Defined in os package.
+func newWindowsFile(h syscall.Handle, name string) *os.File
+
 func (fd *netFD) dup() (*os.File, error) {
 	// Disassociate the IOCP from the socket,
 	// it is not safe to share a duplicated handle
@@ -245,11 +243,14 @@ func (fd *netFD) dup() (*os.File, error) {
 	err := fd.pfd.RawControl(func(fd uintptr) {
 		h, syserr = dupSocket(syscall.Handle(fd))
 	})
-	if err != nil {
+	if err == nil {
 		err = syserr
 	}
 	if err != nil {
 		return nil, err
 	}
-	return os.NewFile(uintptr(h), fd.name()), nil
+	// All WSASocket calls must be match with a syscall.Closesocket call,
+	// but os.NewFile calls syscall.CloseHandle instead. We need to use
+	// a hidden function so that the returned file is aware of this fact.
+	return newWindowsFile(h, fd.name()), nil
 }
