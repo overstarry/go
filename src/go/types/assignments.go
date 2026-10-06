@@ -261,11 +261,13 @@ func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand, context string) {
 
 	if x == nil {
 		var target *target
-		// avoid calling ExprString if not needed
 		if T != nil {
+			// avoid calling ExprString if not needed
+			var desc string
 			if _, ok := T.Underlying().(*Signature); ok {
-				target = newTarget(T, ExprString(lhs))
+				desc = ExprString(lhs)
 			}
+			target = newTarget(T, desc)
 		}
 		x = new(operand)
 		check.expr(target, x, rhs)

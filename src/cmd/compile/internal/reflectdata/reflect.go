@@ -15,7 +15,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
-	"cmd/compile/internal/compare"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/rttype"
@@ -57,7 +56,7 @@ type typeSig struct {
 func commonSize() int { return int(rttype.Type.Size()) } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
-	if t.Sym() == nil && len(methods(t)) == 0 {
+	if t.TFlag()&abi.TFlagUncommon == 0 {
 		return 0
 	}
 	return int(rttype.UncommonType.Size())
@@ -464,20 +463,6 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("PtrBytes").WriteUintptr(uint64(ptrdata))
 	c.Field("Hash").WriteUint32(types.TypeHash(t))
 
-	var tflag abi.TFlag
-	if uncommonSize(t) != 0 {
-		tflag |= abi.TFlagUncommon
-	}
-	if t.Sym() != nil && t.Sym().Name != "" {
-		tflag |= abi.TFlagNamed
-	}
-	if compare.IsRegularMemory(t) {
-		tflag |= abi.TFlagRegularMemory
-	}
-	if onDemand {
-		tflag |= abi.TFlagGCMaskOnDemand
-	}
-
 	exported := false
 	p := t.NameString()
 	// If we're writing out type T,
@@ -485,9 +470,8 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	// Use the string "*T"[1:] for "T", so that the two
 	// share storage. This is a cheap way to reduce the
 	// amount of space taken up by reflect strings.
-	if !strings.HasPrefix(p, "*") {
+	if t.TFlag()&abi.TFlagExtraStar != 0 {
 		p = "*" + p
-		tflag |= abi.TFlagExtraStar
 		if t.Sym() != nil {
 			exported = types.IsExported(t.Sym().Name)
 		}
@@ -496,15 +480,8 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 			exported = types.IsExported(t.Elem().Sym().Name)
 		}
 	}
-	if types.IsDirectIface(t) {
-		tflag |= abi.TFlagDirectIface
-	}
 
-	if tflag != abi.TFlag(uint8(tflag)) {
-		// this should optimize away completely
-		panic("Unexpected change in size of abi.TFlag")
-	}
-	c.Field("TFlag").WriteUint8(uint8(tflag))
+	c.Field("TFlag").WriteUint8(uint8(t.TFlag()))
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(uint8(t.Alignment()))
@@ -573,13 +550,17 @@ func TypeLinksymLookup(name string) *obj.LSym {
 
 func TypeLinksym(t *types.Type) *obj.LSym {
 	lsym := TypeSym(t).Linksym()
+	setTypeInfo(lsym, t)
+	return lsym
+}
+
+func setTypeInfo(lsym *obj.LSym, t *types.Type) {
 	signatmu.Lock()
 	if lsym.Extra == nil {
 		ti := lsym.NewTypeInfo()
 		ti.Type = t
 	}
 	signatmu.Unlock()
-	return lsym
 }
 
 // TypePtrAt returns an expression that evaluates to the
@@ -715,15 +696,34 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 
 	if s.Siggen() {
+		// The descriptor has already been written. If it was written for a
+		// noalg instance of the same type, it left out the algorithms this
+		// instance needs, so fill them in, including TFlagRegularMemory.
+		if lsym.WeakDef() && !types.TypeHasNoAlg(t) {
+			lsym.Set(obj.AttrWeakDef, false)
+			if eqfunc := geneq(t); eqfunc != nil {
+				objw.SymPtr(lsym, int(rttype.Type.OffsetOf("Equal")), eqfunc, 0)
+			}
+			if types.AlgType(t) == types.AMEM {
+				off := int(rttype.Type.OffsetOf("TFlag"))
+				objw.Uint8(lsym, off, lsym.P[off]|uint8(abi.TFlagRegularMemory))
+			}
+		}
 		return lsym
 	}
 	s.SetSiggen(true)
 
 	if !tbase.HasShape() {
-		TypeLinksym(t) // ensure lsym.Extra is set
+		setTypeInfo(lsym, t) // ensure lsym.Extra is set
 	}
 
 	if !NeedEmit(tbase) {
+		u := t
+		for u.IsPtr() {
+			u = u.Elem()
+		}
+		typecheck.CalcMethods(types.ReceiverBaseType(u))
+
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
 			lsym.Pkg = tbase.Sym().Pkg.Prefix
 			lsym.SymIdx = int32(i)
@@ -932,16 +932,23 @@ func writeType(t *types.Type) *obj.LSym {
 		dextratype(lsym, B, t, dataAdd)
 	}
 
-	// Note: DUPOK is required to ensure that we don't end up with more
-	// than one type descriptor for a given type, if the type descriptor
-	// can be defined in multiple packages, that is, unnamed types,
-	// instantiated types and shape types.
 	dupok := 0
-	if tbase.Sym() == nil || tbase.IsFullyInstantiated() || tbase.HasShape() {
+	if TypeCanBeDupok(tbase) {
 		dupok = obj.DUPOK
 	}
 
 	objw.Global(lsym, int32(E), int16(dupok|obj.RODATA))
+
+	// A noalg type gets a descriptor without the type's hash and equality
+	// algorithms, because this package has no use for them. Another package
+	// may well have one, and emit a descriptor for the same type that does
+	// link them. Both describe the same type and carry the same name, so
+	// mark this one weak: the descriptor with the algorithms is usable
+	// everywhere this one is, and has to be the one the linker keeps.
+	// See cmd/internal/obj.AttrWeakDef.
+	if types.TypeHasNoAlg(t) {
+		lsym.Set(obj.AttrWeakDef, true)
+	}
 
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
@@ -989,6 +996,16 @@ func NeedRuntimeType(t *types.Type) {
 	if _, ok := signatset[t]; !ok {
 		signatset[t] = struct{}{}
 		signatslice = append(signatslice, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
+	}
+}
+
+// ForEachRuntimeType calls fn for each type for which a runtime type descriptor
+// has been requested. This is used by the code that indexes symbols early, so
+// we can recursively index the symbols WriteRuntimeTypes numbers using the
+// recursive writeType function.
+func ForEachRuntimeType(fn func(*types.Type)) {
+	for _, ts := range signatslice {
+		fn(ts.t)
 	}
 }
 
@@ -1254,7 +1271,7 @@ func GCSym(t *types.Type, onDemandAllowed bool) (lsym *obj.LSym, ptrdata int64) 
 // When write is true, it writes the symbol data.
 func dgcsym(t *types.Type, write, onDemandAllowed bool) (lsym *obj.LSym, onDemand bool, ptrdata int64) {
 	ptrdata = types.PtrDataSize(t)
-	if !onDemandAllowed || ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
+	if !onDemandAllowed || t.TFlag()&abi.TFlagGCMaskOnDemand == 0 {
 		lsym = dgcptrmask(t, write)
 		return
 	}
@@ -1332,6 +1349,12 @@ func ZeroAddr(size int64) ir.Node {
 	lsym := base.PkgLinksym("go:map", "zero", obj.ABI0)
 	x := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
 	return typecheck.Expr(typecheck.NodAddr(x))
+}
+
+// TypeCanBeDupok reports whether the type descriptor can be defined in multiple packages:
+// that is, unnamed types, instantiated types and shape types.
+func TypeCanBeDupok(t *types.Type) bool {
+	return t.Sym() == nil || t.IsFullyInstantiated() || t.HasShape()
 }
 
 // NeedEmit reports whether typ is a type that we need to emit code
@@ -1416,8 +1439,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		rcvr = rcvr.PtrTo()
 	}
 
-	newnam := ir.MethodSym(rcvr, method.Sym)
-	lsym := newnam.Linksym()
+	sym, _ := ir.MethodSym(rcvr, method)
+	lsym := sym.Linksym()
 
 	// Unified IR creates its own wrappers.
 	return lsym

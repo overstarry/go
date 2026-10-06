@@ -169,15 +169,13 @@
 //			defer cancel()
 //
 //			// Wait just less than the timeout.
-//			time.Sleep(timeout - time.Nanosecond)
-//			synctest.Wait()
+//			synctest.Sleep(timeout - time.Nanosecond)
 //			if err := ctx.Err(); err != nil {
 //				t.Fatalf("before timeout: ctx.Err() = %v, want nil\n", err)
 //			}
 //
 //			// Wait the rest of the way until the timeout.
-//			time.Sleep(time.Nanosecond)
-//			synctest.Wait()
+//			synctest.Sleep(time.Nanosecond)
 //			if err := ctx.Err(); err != context.DeadlineExceeded {
 //				t.Fatalf("after timeout: ctx.Err() = %v, want DeadlineExceeded\n", err)
 //			}
@@ -329,4 +327,15 @@ func Wait() {
 func Sleep(d time.Duration) {
 	time.Sleep(d)
 	Wait()
+}
+
+// Subtest is a convenience function that runs f in a subtest of t called name.
+//
+// It is exactly equivalent to calling t.Run with a function that calls [Test].
+func Subtest(t *testing.T, name string, f func(*testing.T)) {
+	t.Helper()
+	t.Run(name, func(t *testing.T) {
+		t.Helper()
+		Test(t, f)
+	})
 }

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"internal/txtar"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -102,17 +103,11 @@ func NewEngine(t *testing.T, repls []ToolReplacement) (*script.Engine, []string)
 		return env
 	}
 
-	interrupt := func(cmd *exec.Cmd) error {
-		// TODO(thepudds): currently cmd/go/script_test.go uses a platform-specific cancel
-		// that we could consider emulating here.
-		return cmd.Process.Signal(os.Interrupt)
-	}
-
 	// Customize the subprocess termination grace period to reduce flakes on busy builders (#76685).
 	// The grace period is the max of 100ms or 5% of the time remaining until any t.Deadline.
 	gracePeriod := subprocessGracePeriod(t.Deadline())
 
-	cmdExec := script.Exec(interrupt, gracePeriod)
+	cmdExec := script.Exec(script.InterruptCmd, gracePeriod)
 	cmds["exec"] = cmdExec
 
 	// Set up an alternate go root for running script tests, since it
@@ -129,7 +124,7 @@ func NewEngine(t *testing.T, repls []ToolReplacement) (*script.Engine, []string)
 
 	// Add in commands for "go" and "cc".
 	testgo := filepath.Join(tgr, "bin", "go")
-	gocmd := script.Program(testgo, interrupt, gracePeriod)
+	gocmd := script.Program(testgo, script.InterruptCmd, gracePeriod)
 	addcmd("go", gocmd)
 	addcmd("cc", scriptCC(cmdExec, goEnv("CC")))
 
@@ -254,6 +249,11 @@ func RunTests(t *testing.T, ctx context.Context, engine *script.Engine, env []st
 				t.Fatal(err)
 			}
 
+			// Call fixPermissions at the end of the test case in case
+			// it uses the go modcache, which writes read-only files.
+			// fixPermissions fixes up the permissions so a later removal can succeed.
+			defer fixPermissions(t, workdir)
+
 			// Unpack archive.
 			a, err := txtar.ParseFile(file)
 			if err != nil {
@@ -276,6 +276,21 @@ func RunTests(t *testing.T, ctx context.Context, engine *script.Engine, env []st
 			Run(t, engine, s, file, bytes.NewReader(a.Comment))
 		})
 	}
+}
+
+func fixPermissions(t *testing.T, dir string) {
+	t.Helper()
+
+	// module cache has 0444 directories;
+	// make them writable in order to remove content.
+	filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
+		// chmod not only directories, but also things that we couldn't even stat
+		// due to permission errors: they may also be unreadable directories.
+		if err != nil || info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
 }
 
 // InitScriptDirs sets up directories for executing a script test.

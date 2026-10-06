@@ -193,8 +193,14 @@ var atomicSWP = map[obj.As]uint32{
 	ACASALB: 0<<30 | 0x47<<21 | 0x3f<<10,
 }
 var atomicCASP = map[obj.As]uint32{
-	ACASPD: 1<<30 | 0x41<<21 | 0x1f<<10,
-	ACASPW: 0<<30 | 0x41<<21 | 0x1f<<10,
+	ACASPD:   1<<30 | 0x41<<21 | 0x1f<<10, // CASP
+	ACASPW:   0<<30 | 0x41<<21 | 0x1f<<10,
+	ACASPAD:  1<<30 | 0x43<<21 | 0x1f<<10, // CASPA (acquire)
+	ACASPAW:  0<<30 | 0x43<<21 | 0x1f<<10,
+	ACASPALD: 1<<30 | 0x43<<21 | 0x3f<<10, // CASPAL (acquire+release)
+	ACASPALW: 0<<30 | 0x43<<21 | 0x3f<<10,
+	ACASPLD:  1<<30 | 0x41<<21 | 0x3f<<10, // CASPL (release)
+	ACASPLW:  0<<30 | 0x41<<21 | 0x3f<<10,
 }
 
 var oprange [obj.AllowedOpCodes][]Optab
@@ -1214,16 +1220,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
-
-	// Now that we know byte offsets, we can generate jump table entries.
-	for _, jt := range cursym.Func().JumpTables {
-		for i, p := range jt.Targets {
-			// The ith jumptable entry points to the p.Pc'th
-			// byte in the function symbol s.
-			// TODO: try using relative PCs.
-			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
-		}
-	}
 }
 
 type codeBuffer struct {
@@ -1558,7 +1554,8 @@ func isNEGop(op obj.As) bool {
 
 func isLoadStorePairOp(op obj.As) bool {
 	switch op {
-	case AFLDPQ, AFSTPQ, ALDP, ASTP, ALDPW, ASTPW:
+	case ALDP, ALDPW, ALDPSW, ASTP, ASTPW,
+		AFLDPD, AFLDPQ, AFLDPS, AFSTPD, AFSTPQ, AFSTPS:
 		return true
 	}
 	return false
@@ -2874,6 +2871,12 @@ func buildop(ctxt *obj.Link) {
 
 		case ACASPD:
 			oprangeset(ACASPW, t)
+			oprangeset(ACASPAD, t)
+			oprangeset(ACASPAW, t)
+			oprangeset(ACASPALD, t)
+			oprangeset(ACASPALW, t)
+			oprangeset(ACASPLD, t)
+			oprangeset(ACASPLW, t)
 		case ABEQ:
 			oprangeset(ABNE, t)
 			oprangeset(ABCS, t)

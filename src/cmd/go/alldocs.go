@@ -216,12 +216,14 @@
 //		maps each disk file path (a string) to its backing file path, so that
 //		a build will run as if the disk file path exists with the contents
 //		given by the backing file paths, or as if the disk file path does not
-//		exist if its backing file path is empty. Support for the -overlay flag
-//		has some limitations: importantly, cgo files included from outside the
-//		include path must be in the same directory as the Go package they are
-//		included from, overlays will not appear when binaries and tests are
-//		run through go run and go test respectively, and files beneath
-//		GOMODCACHE may not be replaced.
+//		exist if its backing file path is empty. A disk file path in 'Replace'
+//		does not need to exist on disk, so an overlay can also add new files
+//		to a build. Support for the -overlay flag has some limitations:
+//		importantly, cgo files included from outside the include path must
+//		be in the same directory as the Go package they are included from,
+//		overlays will not appear when binaries and tests are run through
+//		go run and go test respectively, and files beneath GOMODCACHE may
+//		not be replaced.
 //	-pgo file
 //		specify the file path of a profile for profile-guided optimization (PGO).
 //		When the special name "auto" is specified, for each main package in the
@@ -869,7 +871,7 @@
 //	    BinaryOnly     bool     // binary-only package (no longer supported)
 //	    ForTest        string   // package is only for use in named test
 //	    Export         string   // file containing export data (when using -export)
-//	    BuildID        string   // build ID of the compiled package (when using -export)
+//	    BuildID        string   // build ID of the exported package (when using -export)
 //	    Module         *Module  // info about package's containing module, if any (can be nil)
 //	    Match          []string // command-line patterns matching this package
 //	    DepOnly        bool     // package is only a dependency, not explicitly listed
@@ -941,6 +943,8 @@
 //
 // The template function "join" calls strings.Join.
 //
+// The template function "json" marshals its arguments to JSON.
+//
 // The template function "context" returns the build context, defined as:
 //
 //	type Context struct {
@@ -956,6 +960,9 @@
 //	    ReleaseTags   []string // releases the current release is compatible with
 //	    InstallSuffix string   // suffix to use in the name of the install dir
 //	}
+//
+// The template function "module" takes a module path as a parameter,
+// and returns information about the module, defined as the Module struct below.
 //
 // For more information about the meaning of these fields see the documentation
 // for the go/build package's Context type.
@@ -989,8 +996,11 @@
 // (zeroed).
 //
 // The -export flag causes list to set the Export field to the name of a
-// file containing up-to-date export information for the given package,
-// and the BuildID field to the build ID of the compiled package.
+// file containing up-to-date export data for the given package,
+// and the BuildID field to the build ID of the exported package.
+// The Export file encodes complete type information for the package's
+// public API. To decode it, use the golang.org/x/tools/go/gcexportdata
+// package.
 //
 // The -find flag causes list to identify the named packages but not
 // resolve their dependencies: the Imports and Deps lists will be empty.
@@ -1501,6 +1511,9 @@
 // graph, one package per line. If the package or module is not
 // referenced from the main module, the stanza will display a single
 // parenthesized note indicating that fact.
+//
+// If any of the listed packages or modules is not referenced from
+// the main module, why exits with a non-zero status.
 //
 // For example:
 //

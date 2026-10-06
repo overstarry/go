@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math"
 	"mime"
 	"mime/multipart"
 	"net/http/httptrace"
@@ -788,15 +789,11 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 type requestBodyReadError struct{ error }
 
 func idnaASCII(v string) (string, error) {
-	// TODO: Consider removing this check after verifying performance is okay.
-	// Right now punycode verification, length checks, context checks, and the
-	// permissible character tests are all omitted. It also prevents the ToASCII
-	// call from salvaging an invalid IDN, when possible. As a result it may be
-	// possible to have two IDNs that appear identical to the user where the
-	// ASCII-only version causes an error downstream whereas the non-ASCII
-	// version does not.
-	// Note that for correct ASCII IDNs ToASCII will only do considerably more
-	// work, but it will not cause an allocation.
+	// TODO: Follow the WHATWG URL Specification.
+	//
+	// WHATWG accepts all ASCII-only names (although sometimes with advisory
+	// validation errors), so skipping the relatively expensive IDNA processing
+	// on them is fine.
 	if ascii.Is(v) {
 		return v, nil
 	}
@@ -1074,6 +1071,11 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
 	return req, nil
 }
 
+// readMIMEHeader is defined in package [net/textproto].
+//
+//go:linkname readMIMEHeader net/textproto.readMIMEHeader
+func readMIMEHeader(r *textproto.Reader, maxMemory, maxHeaders int64) (textproto.MIMEHeader, error)
+
 // readRequest should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
@@ -1086,6 +1088,10 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
 //
 //go:linkname readRequest
 func readRequest(b *bufio.Reader) (req *Request, err error) {
+	return readRequestLimit(b, math.MaxInt64)
+}
+
+func readRequestLimit(b *bufio.Reader, maxHeaders int64) (req *Request, err error) {
 	tp := newTextprotoReader(b)
 	defer putTextprotoReader(tp)
 
@@ -1139,8 +1145,12 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
 	}
 
 	// Subsequent lines: Key: value.
-	mimeHeader, err := tp.ReadMIMEHeader()
+	mimeHeader, err := readMIMEHeader(tp, math.MaxInt64, maxHeaders)
 	if err != nil {
+		// TODO: Add a distinguishable error to net/textproto.
+		if err.Error() == "message too large" {
+			return nil, errTooLarge
+		}
 		return nil, err
 	}
 	req.Header = Header(mimeHeader)
@@ -1164,7 +1174,7 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
 
 	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
 
-	err = readTransfer(req, b)
+	err = readTransfer(req, b, maxHeaders)
 	if err != nil {
 		return nil, err
 	}
@@ -1547,7 +1557,7 @@ func (r *Request) closeBody() error {
 func (r *Request) isReplayable() bool {
 	if r.Body == nil || r.Body == NoBody || r.GetBody != nil {
 		switch valueOrDefault(r.Method, "GET") {
-		case "GET", "HEAD", "OPTIONS", "TRACE":
+		case "GET", "HEAD", "OPTIONS", "TRACE", "QUERY":
 			return true
 		}
 		// The Idempotency-Key, while non-standard, is widely used to

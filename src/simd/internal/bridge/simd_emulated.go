@@ -7,12 +7,12 @@
 package bridge
 
 import (
-	"fmt"
+	"internal/strconv"
 	"math"
 	"math/bits"
 )
 
-// VectorSize returns the bit length of the emulated vector (fixed to 128).
+// VectorBitSize returns the bit length of the emulated vector (fixed to 128).
 func VectorBitSize() int {
 	return 128
 }
@@ -32,14 +32,41 @@ func HasHardwareCarrylessMultiply() bool {
 	return false
 }
 
-type _simd struct {
-	_ [0]func(*_simd) *_simd
+type number interface {
+	~int8 | ~int16 | ~int32 | ~int64 | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64
 }
 
-// Int8s represents a 128-bit vector of 16 int8 elements.
-type Int8s struct {
-	_    _simd
-	a, b uint64
+func sliceToString[T number](x []T) string {
+	s := ""
+	pfx := "{"
+	for _, y := range x {
+		s += pfx
+		pfx = ","
+		switch e := any(y).(type) {
+		case int8:
+			s += strconv.Itoa(int(e))
+		case int16:
+			s += strconv.Itoa(int(e))
+		case int32:
+			s += strconv.Itoa(int(e))
+		case int64:
+			s += strconv.FormatInt(int64(e), 10)
+		case uint8:
+			s += strconv.FormatUint(uint64(e), 10)
+		case uint16:
+			s += strconv.FormatUint(uint64(e), 10)
+		case uint32:
+			s += strconv.FormatUint(uint64(e), 10)
+		case uint64:
+			s += strconv.FormatUint(uint64(e), 10)
+		case float32:
+			s += strconv.FormatFloat(float64(e), 'g', -1, 32)
+		case float64:
+			s += strconv.FormatFloat(e, 'g', -1, 64)
+		}
+	}
+	s += "}"
+	return s
 }
 
 // LoadInt8s loads a slice of int8 into an Int8s vector.
@@ -283,6 +310,15 @@ func (x Int8s) Or(y Int8s) Int8s {
 	return Int8s{a: x.a | y.a, b: x.b | y.b}
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int8s) ReduceSum() int8 {
+	var res int8
+	for i := 0; i < 16; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Int8s) Store(s []int8) {
 	for i := 0; i < 16 && i < len(s); i++ {
@@ -302,7 +338,7 @@ func (x Int8s) String() string {
 	for i := 0; i < 16; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -354,12 +390,6 @@ func (x Int8s) ConvertToUint8() Uint8s {
 // ToBits reinterprets the vector bits as a Uint8s vector.
 func (x Int8s) ToBits() Uint8s {
 	return Uint8s{a: x.a, b: x.b}
-}
-
-// Int16s represents a 128-bit vector of 8 int16 elements.
-type Int16s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadInt16s loads a slice of int16 into an Int16s vector.
@@ -604,7 +634,7 @@ func (x Int16s) Or(y Int16s) Int16s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int16s) ShiftAllLeft(y uint8) Int16s {
+func (x Int16s) ShiftAllLeft(y uint64) Int16s {
 	var res Int16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)<<y)
@@ -613,7 +643,7 @@ func (x Int16s) ShiftAllLeft(y uint8) Int16s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Int16s) ShiftAllRight(y uint8) Int16s {
+func (x Int16s) ShiftAllRight(y uint64) Int16s {
 	var res Int16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)>>y)
@@ -645,6 +675,15 @@ func (x Int16s) RotateAllRight(dist uint64) Int16s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int16s) ReduceSum() int16 {
+	var res int16
+	for i := 0; i < 8; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Int16s) Store(s []int16) {
 	for i := 0; i < 8 && i < len(s); i++ {
@@ -664,7 +703,7 @@ func (x Int16s) String() string {
 	for i := 0; i < 8; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -718,12 +757,6 @@ func (x Int16s) ToBits() Uint16s {
 	return Uint16s{a: x.a, b: x.b}
 }
 
-// Int32s represents a 128-bit vector of 4 int32 elements.
-type Int32s struct {
-	_    _simd
-	a, b uint64
-}
-
 // LoadInt32s loads a slice of int32 into an Int32s vector.
 func LoadInt32s(s []int32) Int32s {
 	var a, b uint64
@@ -766,10 +799,10 @@ func (x Int32s) get(i int) int32 {
 func (x *Int32s) set(i int, v int32) {
 	val := uint64(uint32(v))
 	if i < 2 {
-		mask := uint64(0xffffffff) << (32 * i)
+		mask := uint64(0xffff_ffff) << (32 * i)
 		x.a = (x.a &^ mask) | (val << (32 * i))
 	} else {
-		mask := uint64(0xffffffff) << (32 * (i - 2))
+		mask := uint64(0xffff_ffff) << (32 * (i - 2))
 		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
 	}
 }
@@ -959,7 +992,7 @@ func (x Int32s) Or(y Int32s) Int32s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int32s) ShiftAllLeft(y uint8) Int32s {
+func (x Int32s) ShiftAllLeft(y uint64) Int32s {
 	var res Int32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)<<y)
@@ -968,7 +1001,7 @@ func (x Int32s) ShiftAllLeft(y uint8) Int32s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Int32s) ShiftAllRight(y uint8) Int32s {
+func (x Int32s) ShiftAllRight(y uint64) Int32s {
 	var res Int32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)>>y)
@@ -1000,6 +1033,15 @@ func (x Int32s) RotateAllRight(dist uint64) Int32s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int32s) ReduceSum() int32 {
+	var res int32
+	for i := 0; i < 4; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Int32s) Store(s []int32) {
 	for i := 0; i < 4 && i < len(s); i++ {
@@ -1019,7 +1061,7 @@ func (x Int32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -1055,12 +1097,6 @@ func (x Int32s) ConvertToUint32() Uint32s {
 // ToBits reinterprets the vector bits as a Uint32s vector.
 func (x Int32s) ToBits() Uint32s {
 	return Uint32s{a: x.a, b: x.b}
-}
-
-// Int64s represents a 128-bit vector of 2 int64 elements.
-type Int64s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadInt64s loads a slice of int64 into an Int64s vector.
@@ -1219,7 +1255,7 @@ func (x Int64s) Or(y Int64s) Int64s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Int64s) ShiftAllLeft(y uint8) Int64s {
+func (x Int64s) ShiftAllLeft(y uint64) Int64s {
 	return Int64s{a: x.a << y, b: x.b << y}
 }
 
@@ -1259,7 +1295,7 @@ func (x Int64s) StorePart(s []int64) int {
 
 // String returns a string representation of the vector.
 func (x Int64s) String() string {
-	return fmt.Sprint([2]int64{int64(x.a), int64(x.b)})
+	return sliceToString([]int64{int64(x.a), int64(x.b)})
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -1292,12 +1328,6 @@ func (x Int64s) ConvertToUint64() Uint64s {
 // ToBits reinterprets the vector bits as a Uint64s vector.
 func (x Int64s) ToBits() Uint64s {
 	return Uint64s{a: x.a, b: x.b}
-}
-
-// Uint8s represents a 128-bit vector of 16 uint8 elements.
-type Uint8s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadUint8s loads a slice of uint8 into an Uint8s vector.
@@ -1481,6 +1511,15 @@ func (x Uint8s) Or(y Uint8s) Uint8s {
 	return Uint8s{a: x.a | y.a, b: x.b | y.b}
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint8s) ReduceSum() uint8 {
+	var res uint8
+	for i := 0; i < 16; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Uint8s) Store(s []uint8) {
 	for i := 0; i < 16 && i < len(s); i++ {
@@ -1500,7 +1539,7 @@ func (x Uint8s) String() string {
 	for i := 0; i < 16; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -1555,12 +1594,6 @@ func (x Uint8s) ReshapeToUint32s() Uint32s {
 // ReshapeToUint64s reinterprets the vector bits as a Uint64s vector.
 func (x Uint8s) ReshapeToUint64s() Uint64s {
 	return Uint64s{a: x.a, b: x.b}
-}
-
-// Uint16s represents a 128-bit vector of 8 uint16 elements.
-type Uint16s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadUint16s loads a slice of uint16 into an Uint16s vector.
@@ -1789,7 +1822,7 @@ func (x Uint16s) Or(y Uint16s) Uint16s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint16s) ShiftAllLeft(y uint8) Uint16s {
+func (x Uint16s) ShiftAllLeft(y uint64) Uint16s {
 	var res Uint16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)<<y)
@@ -1798,7 +1831,7 @@ func (x Uint16s) ShiftAllLeft(y uint8) Uint16s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint16s) ShiftAllRight(y uint8) Uint16s {
+func (x Uint16s) ShiftAllRight(y uint64) Uint16s {
 	var res Uint16s
 	for i := 0; i < 8; i++ {
 		res.set(i, x.get(i)>>y)
@@ -1830,6 +1863,15 @@ func (x Uint16s) RotateAllRight(dist uint64) Uint16s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint16s) ReduceSum() uint16 {
+	var res uint16
+	for i := 0; i < 8; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Uint16s) Store(s []uint16) {
 	for i := 0; i < 8 && i < len(s); i++ {
@@ -1849,7 +1891,7 @@ func (x Uint16s) String() string {
 	for i := 0; i < 8; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -1906,12 +1948,6 @@ func (x Uint16s) ReshapeToUint8s() Uint8s {
 	return Uint8s{a: x.a, b: x.b}
 }
 
-// Uint32s represents a 128-bit vector of 4 uint32 elements.
-type Uint32s struct {
-	_    _simd
-	a, b uint64
-}
-
 // LoadUint32s loads a slice of uint32 into an Uint32s vector.
 func LoadUint32s(s []uint32) Uint32s {
 	var a, b uint64
@@ -1954,10 +1990,10 @@ func (x Uint32s) get(i int) uint32 {
 func (x *Uint32s) set(i int, v uint32) {
 	val := uint64(v)
 	if i < 2 {
-		mask := uint64(0xffffffff) << (32 * i)
+		mask := uint64(0xffff_ffff) << (32 * i)
 		x.a = (x.a &^ mask) | (val << (32 * i))
 	} else {
-		mask := uint64(0xffffffff) << (32 * (i - 2))
+		mask := uint64(0xffff_ffff) << (32 * (i - 2))
 		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
 	}
 }
@@ -2115,7 +2151,7 @@ func (x Uint32s) Or(y Uint32s) Uint32s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint32s) ShiftAllLeft(y uint8) Uint32s {
+func (x Uint32s) ShiftAllLeft(y uint64) Uint32s {
 	var res Uint32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)<<y)
@@ -2124,7 +2160,7 @@ func (x Uint32s) ShiftAllLeft(y uint8) Uint32s {
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint32s) ShiftAllRight(y uint8) Uint32s {
+func (x Uint32s) ShiftAllRight(y uint64) Uint32s {
 	var res Uint32s
 	for i := 0; i < 4; i++ {
 		res.set(i, x.get(i)>>y)
@@ -2156,6 +2192,15 @@ func (x Uint32s) RotateAllRight(dist uint64) Uint32s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint32s) ReduceSum() uint32 {
+	var res uint32
+	for i := 0; i < 4; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Store stores the vector elements into the slice s.
 func (x Uint32s) Store(s []uint32) {
 	for i := 0; i < 4 && i < len(s); i++ {
@@ -2175,7 +2220,7 @@ func (x Uint32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -2220,12 +2265,6 @@ func (x Uint32s) ReshapeToUint64s() Uint64s {
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
 func (x Uint32s) ReshapeToUint8s() Uint8s {
 	return Uint8s{a: x.a, b: x.b}
-}
-
-// Uint64s represents a 128-bit vector of 2 uint64 elements.
-type Uint64s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadUint64s loads a slice of uint64 into an Uint64s vector.
@@ -2376,12 +2415,12 @@ func (x Uint64s) Or(y Uint64s) Uint64s {
 }
 
 // ShiftAllLeft shifts all elements left by y bits.
-func (x Uint64s) ShiftAllLeft(y uint8) Uint64s {
+func (x Uint64s) ShiftAllLeft(y uint64) Uint64s {
 	return Uint64s{a: x.a << y, b: x.b << y}
 }
 
 // ShiftAllRight shifts all elements right by y bits.
-func (x Uint64s) ShiftAllRight(y uint8) Uint64s {
+func (x Uint64s) ShiftAllRight(y uint64) Uint64s {
 	return Uint64s{a: x.a >> y, b: x.b >> y}
 }
 
@@ -2421,7 +2460,7 @@ func (x Uint64s) StorePart(s []uint64) int {
 
 // String returns a string representation of the vector.
 func (x Uint64s) String() string {
-	return fmt.Sprint([2]uint64{x.a, x.b})
+	return sliceToString([]uint64{x.a, x.b})
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -2462,12 +2501,6 @@ func (x Uint64s) ReshapeToUint32s() Uint32s {
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
 func (x Uint64s) ReshapeToUint8s() Uint8s {
 	return Uint8s{a: x.a, b: x.b}
-}
-
-// Float32s represents a 128-bit vector of 4 float32 elements.
-type Float32s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadFloat32s loads a slice of float32 into an Float32s vector.
@@ -2512,10 +2545,10 @@ func (x Float32s) get(i int) float32 {
 func (x *Float32s) set(i int, v float32) {
 	val := uint64(math.Float32bits(v))
 	if i < 2 {
-		mask := uint64(0xffffffff) << (32 * i)
+		mask := uint64(0xffff_ffff) << (32 * i)
 		x.a = (x.a &^ mask) | (val << (32 * i))
 	} else {
-		mask := uint64(0xffffffff) << (32 * (i - 2))
+		mask := uint64(0xffff_ffff) << (32 * (i - 2))
 		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
 	}
 }
@@ -2525,11 +2558,8 @@ func (x Float32s) Abs() Float32s {
 	var res Float32s
 	for i := 0; i < 4; i++ {
 		v := x.get(i)
-		if v < 0 {
-			res.set(i, -v)
-		} else {
-			res.set(i, v)
-		}
+		v = float32(math.Abs(float64(v)))
+		res.set(i, v)
 	}
 	return res
 }
@@ -2633,11 +2663,7 @@ func (x Float32s) Max(y Float32s) Float32s {
 	for i := 0; i < 4; i++ {
 		vx := x.get(i)
 		vy := y.get(i)
-		if vx > vy {
-			res.set(i, vx)
-		} else {
-			res.set(i, vy)
-		}
+		res.set(i, max(vx, vy))
 	}
 	return res
 }
@@ -2650,17 +2676,13 @@ func (x Float32s) IfElse(mask Mask32s, y Float32s) Float32s {
 	}
 }
 
-// Min returns the element-wise minimum of x and y.
+// Min returns the element-wise maximum of x and y.
 func (x Float32s) Min(y Float32s) Float32s {
 	var res Float32s
 	for i := 0; i < 4; i++ {
 		vx := x.get(i)
 		vy := y.get(i)
-		if vx < vy {
-			res.set(i, vx)
-		} else {
-			res.set(i, vy)
-		}
+		res.set(i, min(vx, vy))
 	}
 	return res
 }
@@ -2672,7 +2694,6 @@ func (x Float32s) Mul(y Float32s) Float32s {
 	res.set(1, x.get(1)*y.get(1))
 	res.set(2, x.get(2)*y.get(2))
 	res.set(3, x.get(3)*y.get(3))
-
 	return res
 }
 
@@ -2684,7 +2705,6 @@ func (x Float32s) MulAdd(y, z Float32s) Float32s {
 	res.set(1, x.get(1)*y.get(1)+z.get(1))
 	res.set(2, x.get(2)*y.get(2)+z.get(2))
 	res.set(3, x.get(3)*y.get(3)+z.get(3))
-
 	return res
 }
 
@@ -2706,6 +2726,13 @@ func (x Float32s) NotEqual(y Float32s) Mask32s {
 		}
 	}
 	return res
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float32s) ReduceSum() float32 {
+	// Evaluate with same associativity as the horizontal-add idiom.
+	// It's also perhaps faster, since a shorter expression tree.
+	return (x.get(0) + x.get(1)) + (x.get(2) + x.get(3))
 }
 
 // Sqrt returns the element-wise square root of x.
@@ -2736,7 +2763,7 @@ func (x Float32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -2751,12 +2778,6 @@ func (x Float32s) Sub(y Float32s) Float32s {
 // ToBits reinterprets the vector bits as a Uint32s vector.
 func (x Float32s) ToBits() Uint32s {
 	return Uint32s{a: x.a, b: x.b}
-}
-
-// Float64s represents a 128-bit vector of 2 float64 elements.
-type Float64s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadFloat64s loads a slice of float64 into an Float64s vector.
@@ -2800,11 +2821,8 @@ func (x Float64s) Abs() Float64s {
 	var res Float64s
 	for i := 0; i < 4; i++ {
 		v := x.get(i)
-		if v < 0 {
-			res.set(i, -v)
-		} else {
-			res.set(i, v)
-		}
+		v = math.Abs(v)
+		res.set(i, v)
 	}
 	return res
 }
@@ -2900,18 +2918,10 @@ func (x Float64s) Max(y Float64s) Float64s {
 	var res Float64s
 	vx := x.get(0)
 	vy := y.get(0)
-	if vx > vy {
-		res.set(0, vx)
-	} else {
-		res.set(0, vy)
-	}
+	res.set(0, max(vx, vy))
 	vx = x.get(1)
 	vy = y.get(1)
-	if vx > vy {
-		res.set(1, vx)
-	} else {
-		res.set(1, vy)
-	}
+	res.set(1, max(vx, vy))
 	return res
 }
 
@@ -2928,18 +2938,10 @@ func (x Float64s) Min(y Float64s) Float64s {
 	var res Float64s
 	vx := x.get(0)
 	vy := y.get(0)
-	if vx < vy {
-		res.set(0, vx)
-	} else {
-		res.set(0, vy)
-	}
+	res.set(0, min(vx, vy))
 	vx = x.get(1)
 	vy = y.get(1)
-	if vx < vy {
-		res.set(1, vx)
-	} else {
-		res.set(1, vy)
-	}
+	res.set(1, min(vx, vy))
 	return res
 }
 
@@ -2980,6 +2982,15 @@ func (x Float64s) NotEqual(y Float64s) Mask64s {
 	return res
 }
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float64s) ReduceSum() float64 {
+	var res float64
+	for i := 0; i < 2; i++ {
+		res += x.get(i)
+	}
+	return res
+}
+
 // Sqrt returns the element-wise square root of x.
 func (x Float64s) Sqrt() Float64s {
 	var res Float64s
@@ -3006,7 +3017,7 @@ func (x Float64s) StorePart(s []float64) int {
 
 // String returns a string representation of the vector.
 func (x Float64s) String() string {
-	return fmt.Sprint([2]float64{x.get(0), x.get(1)})
+	return sliceToString([]float64{x.get(0), x.get(1)})
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -3020,12 +3031,6 @@ func (x Float64s) Sub(y Float64s) Float64s {
 // ToBits reinterprets the vector bits as a Uint64s vector.
 func (x Float64s) ToBits() Uint64s {
 	return Uint64s{a: x.a, b: x.b}
-}
-
-// Mask8s represents a 128-bit mask vector for 16 int8/uint8 elements.
-type Mask8s struct {
-	_    _simd
-	a, b uint64
 }
 
 func (x *Mask8s) set(i int, v bool) {
@@ -3052,18 +3057,14 @@ func (x Mask8s) Or(y Mask8s) Mask8s {
 
 // String returns a string representation of the vector.
 func (x Mask8s) String() string {
-	return fmt.Sprintf("{a:%#x, b:%#x}", x.a, x.b)
+	var s [16]int8
+	x.ToInt8s().Neg().Store(s[:])
+	return sliceToString(s[:])
 }
 
 // ToInt8s converts the mask to an Int8s vector.
 func (x Mask8s) ToInt8s() Int8s {
 	return Int8s{a: x.a, b: x.b}
-}
-
-// Mask16s represents a 128-bit mask vector for 8 int16/uint16 elements.
-type Mask16s struct {
-	_    _simd
-	a, b uint64
 }
 
 func (x *Mask16s) set(i int, v bool) {
@@ -3090,7 +3091,9 @@ func (x Mask16s) Or(y Mask16s) Mask16s {
 
 // String returns a string representation of the vector.
 func (x Mask16s) String() string {
-	return fmt.Sprintf("{a:%#x, b:%#x}", x.a, x.b)
+	var s [8]int16
+	x.ToInt16s().Neg().Store(s[:])
+	return sliceToString(s[:])
 }
 
 // ToInt16s converts the mask to an Int16s vector.
@@ -3098,19 +3101,13 @@ func (x Mask16s) ToInt16s() Int16s {
 	return Int16s{a: x.a, b: x.b}
 }
 
-// Mask32s represents a 128-bit mask vector for 4 int32/uint32/float32 elements.
-type Mask32s struct {
-	_    _simd
-	a, b uint64
-}
-
 func (x *Mask32s) set(i int, v bool) {
 	if v {
 		if i < 2 {
-			mask := uint64(0xffffffff) << (32 * i)
+			mask := uint64(0xffff_ffff) << (32 * i)
 			x.a |= mask
 		} else {
-			mask := uint64(0xffffffff) << (32 * (i - 2))
+			mask := uint64(0xffff_ffff) << (32 * (i - 2))
 			x.b |= mask
 		}
 	}
@@ -3128,18 +3125,14 @@ func (x Mask32s) Or(y Mask32s) Mask32s {
 
 // String returns a string representation of the vector.
 func (x Mask32s) String() string {
-	return fmt.Sprintf("{a:%#x, b:%#x}", x.a, x.b)
+	var s [4]int32
+	x.ToInt32s().Neg().Store(s[:])
+	return sliceToString(s[:])
 }
 
 // ToInt32s converts the mask to an Int32s vector.
 func (x Mask32s) ToInt32s() Int32s {
 	return Int32s{a: x.a, b: x.b}
-}
-
-// Mask64s represents a 128-bit mask vector for 2 int64/uint64/float64 elements.
-type Mask64s struct {
-	_    _simd
-	a, b uint64
 }
 
 func (x *Mask64s) set(i int, v bool) {
@@ -3164,7 +3157,9 @@ func (x Mask64s) Or(y Mask64s) Mask64s {
 
 // String returns a string representation of the vector.
 func (x Mask64s) String() string {
-	return fmt.Sprintf("{a:%#x, b:%#x}", x.a, x.b)
+	var s [2]int64
+	x.ToInt64s().Neg().Store(s[:])
+	return sliceToString(s[:])
 }
 
 // ToInt64s converts the mask to an Int64s vector.
@@ -3250,71 +3245,206 @@ func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) Uint64s {
 	return x.clmul(y)
 }
 
+func (v Int8s) OnesCount() Int8s {
+	a0, a1 := v.a, v.b
+	m1 := uint64(0x5555555555555555)
+	m2 := uint64(0x3333333333333333)
+	m4 := uint64(0x0f0f0f0f0f0f0f0f)
+	a0 = (a0 & m1) + ((a0 >> 1) & m1)
+	a1 = (a1 & m1) + ((a1 >> 1) & m1)
+
+	a0 = (a0 & m2) + ((a0 >> 2) & m2)
+	a1 = (a1 & m2) + ((a1 >> 2) & m2)
+
+	a0 = (a0 & m4) + ((a0 >> 4) & m4)
+	a1 = (a1 & m4) + ((a1 >> 4) & m4)
+
+	return Int8s{a: a0, b: a1}
+}
+
+func (v Uint8s) OnesCount() Uint8s {
+	a0, a1 := v.a, v.b
+	m1 := uint64(0x5555555555555555)
+	m2 := uint64(0x3333333333333333)
+	m4 := uint64(0x0f0f0f0f0f0f0f0f)
+	a0 = (a0 & m1) + ((a0 >> 1) & m1)
+	a1 = (a1 & m1) + ((a1 >> 1) & m1)
+
+	a0 = (a0 & m2) + ((a0 >> 2) & m2)
+	a1 = (a1 & m2) + ((a1 >> 2) & m2)
+
+	a0 = (a0 & m4) + ((a0 >> 4) & m4)
+	a1 = (a1 & m4) + ((a1 >> 4) & m4)
+
+	return Uint8s{a: a0, b: a1}
+}
+
 const (
 	by8  = 0x0101010101010101
 	by16 = 0x0001000100010001
 )
 
-// BroadcastInt8 fills the elements of a slice with its argument value.
+// BroadcastInt8s fills the elements of a slice with its argument value.
 func BroadcastInt8s(x int8) Int8s {
 	v := (255 & uint64(x)) * by8
 	return Int8s{a: v, b: v}
 }
 
-// BroadcastInt16 fills the elements of a slice with its argument value.
+// BroadcastInt16s fills the elements of a slice with its argument value.
 func BroadcastInt16s(x int16) Int16s {
 	v := (65535 & uint64(x)) * by16
 	return Int16s{a: v, b: v}
 }
 
-// BroadcastInt32 fills the elements of a slice with its argument value.
+// BroadcastInt32s fills the elements of a slice with its argument value.
 func BroadcastInt32s(x int32) Int32s {
-	v := uint64(x) & 0xffffffff
+	v := uint64(x) & 0xffff_ffff
 	v = v<<32 | v
 	return Int32s{a: v, b: v}
 }
 
-// BroadcastInt64 fills the elements of a slice with its argument value.
+// BroadcastInt64s fills the elements of a slice with its argument value.
 func BroadcastInt64s(x int64) Int64s {
 	v := uint64(x)
 	return Int64s{a: v, b: v}
 }
 
-// BroadcastUint8 fills the elements of a slice with its argument value.
+// BroadcastUint8s fills the elements of a slice with its argument value.
 func BroadcastUint8s(x uint8) Uint8s {
 	v := uint64(x) * by8
 	return Uint8s{a: v, b: v}
 
 }
 
-// BroadcastUint16 fills the elements of a slice with its argument value.
+// BroadcastUint16s fills the elements of a slice with its argument value.
 func BroadcastUint16s(x uint16) Uint16s {
 	v := uint64(x) * by16
 	return Uint16s{a: v, b: v}
 
 }
 
-// BroadcastUint32 fills the elements of a slice with its argument value.
+// BroadcastUint32s fills the elements of a slice with its argument value.
 func BroadcastUint32s(x uint32) Uint32s {
 	v := uint64(x)
 	v = v<<32 | v
 	return Uint32s{a: v, b: v}
 }
 
-// BroadcastUint64 fills the elements of a slice with its argument value.
+// BroadcastUint64s fills the elements of a slice with its argument value.
 func BroadcastUint64s(x uint64) Uint64s {
 	return Uint64s{a: x, b: x}
 }
 
-// BroadcastFloat32 fills the elements of a slice with its argument value.
+// BroadcastFloat32s fills the elements of a slice with its argument value.
 func BroadcastFloat32s(x float32) Float32s {
 	v := uint64(math.Float32bits(x))
 	v = v<<32 | v
 	return Float32s{a: v, b: v}
 }
 
-// BroadcastFloat64 fills the elements of a slice with its argument value.
+// BroadcastFloat64s fills the elements of a slice with its argument value.
 func BroadcastFloat64s(x float64) Float64s {
 	v := math.Float64bits(x)
 	return Float64s{a: v, b: v}
+}
+
+func (x Mask8s) All() bool {
+	return x.a&x.b == 0xffff_ffff_ffff_ffff
+}
+
+func (x Mask8s) Any() bool {
+	return x.a|x.b != 0
+}
+
+func (x Mask8s) None() bool {
+	return x.a|x.b == 0
+}
+
+func (x Mask16s) All() bool {
+	return x.a&x.b == 0xffff_ffff_ffff_ffff
+}
+
+func (x Mask16s) Any() bool {
+	return x.a|x.b != 0
+}
+
+func (x Mask16s) None() bool {
+	return x.a|x.b == 0
+}
+
+func (x Mask32s) All() bool {
+	return x.a&x.b == 0xffff_ffff_ffff_ffff
+}
+
+func (x Mask32s) Any() bool {
+	return x.a|x.b != 0
+}
+
+func (x Mask32s) None() bool {
+	return x.a|x.b == 0
+}
+
+func (x Mask64s) All() bool {
+	return x.a&x.b == 0xffff_ffff_ffff_ffff
+}
+
+func (x Mask64s) Any() bool {
+	return x.a|x.b != 0
+}
+
+func (x Mask64s) None() bool {
+	return x.a|x.b == 0
+}
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+func (m Mask8s) TrailingZeros() int {
+	a0 := m.a
+	a := a0 & 0x0101010101010101
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 3
+	}
+	a0 = m.b
+	a = a0 & 0x0101010101010101
+	lane = bits.TrailingZeros64(a)
+	return lane>>3 + 8
+}
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+func (m Mask16s) TrailingZeros() int {
+	a0 := m.a
+	a := a0 & 0x0001000100010001
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 4
+	}
+	a0 = m.b
+	a = a0 & 0x0001000100010001
+	lane = bits.TrailingZeros64(a)
+	return lane>>4 + 4
+}
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+func (m Mask32s) TrailingZeros() int {
+	a0 := m.a
+	a := a0 & 0x0000000100000001
+	lane := bits.TrailingZeros64(a)
+	if lane < 64 {
+		return lane >> 5
+	}
+	a0 = m.b
+	a = a0 & 0x0000000100000001
+	lane = bits.TrailingZeros64(a)
+	return lane>>5 + 2
+}
+
+// TrailingZeros returns the number of trailing (low-order) zeroes in mask m
+func (m Mask64s) TrailingZeros() int {
+	if m.a != 0 {
+		return 0
+	}
+	if m.b != 0 {
+		return 1
+	}
+	return 2
 }

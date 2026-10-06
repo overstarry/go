@@ -17,6 +17,7 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/bytealg"
 	"internal/goarch"
 	"iter"
 	"runtime"
@@ -687,20 +688,30 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 
 	methods := ut.ExportedMethods()
 
-	// We are looking for the first index i where the string becomes >= s.
-	// This is a copy of sort.Search, with f(h) replaced by (t.nameOff(methods[h].name).name() >= name).
+	// We are looking for the first index i where the method name becomes
+	// >= name. This is a copy of sort.Find, with cmp(h) replaced by
+	// comparing the name of method h against name.
+	//
+	// Invariant: cmp(i-1) < 0, cmp(j) >= 0,
+	// and found == (j < len(methods) && cmp(j) == 0).
 	i, j := 0, len(methods)
+	// found only goes from false to true: j only decreases, and the methods
+	// are sorted by name, so a method below one whose name compares equal
+	// cannot compare greater.
+	found := false
 	for i < j {
 		h := int(uint(i+j) >> 1) // avoid overflow when computing h
 		// i ≤ h < j
-		if !(t.nameOff(methods[h].Name).Name() >= name) {
-			i = h + 1 // preserves f(i-1) == false
+		if c := bytealg.CompareString(t.nameOff(methods[h].Name).Name(), name); c < 0 {
+			i = h + 1 // preserves cmp(i-1) < 0
 		} else {
-			j = h // preserves f(j) == true
+			j = h // preserves cmp(j) >= 0
+			found = c == 0
 		}
 	}
-	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
-	if i < len(methods) && name == t.nameOff(methods[i].Name).Name() {
+	// i == j, cmp(i-1) < 0, and cmp(j) (= cmp(i)) >= 0  =>  answer is i,
+	// and found reports whether methods[i] is the method we want.
+	if found {
 		return t.Method(i), true
 	}
 
@@ -1821,6 +1832,7 @@ var funcLookupCache struct {
 // If t's size is equal to or exceeds this limit, ChanOf panics.
 func ChanOf(dir ChanDir, t Type) Type {
 	typ := t.common()
+	t = toType(typ) // for #80332, ensure t's exported methods are not shadowed
 
 	// Look in cache.
 	ckey := cacheKey{Chan, typ, nil, uintptr(dir)}
@@ -1912,7 +1924,7 @@ func initFuncTypes(n int) Type {
 // panics if the in[len(in)-1] does not represent a slice and variadic is
 // true.
 func FuncOf(in, out []Type, variadic bool) Type {
-	if variadic && (len(in) == 0 || in[len(in)-1].Kind() != Slice) {
+	if variadic && (len(in) == 0 || toType(in[len(in)-1].common()).Kind() != Slice) {
 		panic("reflect.FuncOf: last arg of variadic func must be slice")
 	}
 
@@ -2128,6 +2140,7 @@ func emitGCMask(out []byte, base uintptr, typ *abi.Type, n uintptr) {
 // For example, if t represents int, SliceOf(t) represents []int.
 func SliceOf(t Type) Type {
 	typ := t.common()
+	t = toType(typ) // for #80332, ensure t's exported methods are not shadowed
 
 	// Look in cache.
 	ckey := cacheKey{Slice, typ, nil, 0}
@@ -2656,6 +2669,7 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	typ := elem.common()
+	elem = toType(typ) // for #80332, ensure elem's exported methods are not shadowed
 
 	// Look in cache.
 	ckey := cacheKey{Array, typ, nil, uintptr(length)}

@@ -6,13 +6,13 @@
 
 package simd
 
-// LoadInt8 loads a slice of int8 into an Int8s vector.
+// LoadInt8s loads a slice of int8 into an Int8s vector.
 func LoadInt8s([]int8) Int8s
 
-// LoadInt8Part loads a partial slice of int8 into an Int8s vector, returning the vector and the number of elements loaded.
+// LoadInt8sPart loads a partial slice of int8 into an Int8s vector, returning the vector and the number of elements loaded.
 func LoadInt8sPart([]int8) (Int8s, int)
 
-// BroadcastInt8 fills the elements of a slice with its argument value.
+// BroadcastInt8s fills the elements of a slice with its argument value.
 func BroadcastInt8s(int8) Int8s
 
 // Abs returns the element-wise absolute value of x.
@@ -75,8 +75,14 @@ func (x Int8s) Not() Int8s
 // NotEqual returns a mask indicating where x and y are not equal.
 func (x Int8s) NotEqual(y Int8s) Mask8s
 
+// OnesCount counts the number of set bits in each element.
+func (x Int8s) OnesCount() Int8s
+
 // Or returns the bitwise OR of x and y.
 func (x Int8s) Or(y Int8s) Int8s
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int8s) ReduceSum() int8
 
 // Store stores the vector elements into the slice s.
 func (x Int8s) Store(s []int8)
@@ -102,13 +108,13 @@ func (x Int8s) ToMask() (to Mask8s)
 // Xor returns the bitwise XOR of x and y.
 func (x Int8s) Xor(y Int8s) Int8s
 
-// LoadInt16 loads a slice of int16 into an Int16s vector.
+// LoadInt16s loads a slice of int16 into an Int16s vector.
 func LoadInt16s([]int16) Int16s
 
-// LoadInt16Part loads a partial slice of int16 into an Int16s vector, returning the vector and the number of elements loaded.
+// LoadInt16sPart loads a partial slice of int16 into an Int16s vector, returning the vector and the number of elements loaded.
 func LoadInt16sPart([]int16) (Int16s, int)
 
-// BroadcastInt16 fills the elements of a slice with its argument value.
+// BroadcastInt16s fills the elements of a slice with its argument value.
 func BroadcastInt16s(int16) Int16s
 
 // Abs returns the element-wise absolute value of x.
@@ -174,6 +180,9 @@ func (x Int16s) NotEqual(y Int16s) Mask16s
 // Or returns the bitwise OR of x and y.
 func (x Int16s) Or(y Int16s) Int16s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int16s) ReduceSum() int16
+
 // RotatesAllLeft rotates all elements left by y bits.
 func (x Int16s) RotateAllLeft(dist uint64) Int16s
 
@@ -210,13 +219,13 @@ func (x Int16s) ToMask() (to Mask16s)
 // Xor returns the bitwise XOR of x and y.
 func (x Int16s) Xor(y Int16s) Int16s
 
-// LoadInt32 loads a slice of int32 into an Int32s vector.
+// LoadInt32s loads a slice of int32 into an Int32s vector.
 func LoadInt32s([]int32) Int32s
 
-// LoadInt32Part loads a partial slice of int32 into an Int32s vector, returning the vector and the number of elements loaded.
+// LoadInt32sPart loads a partial slice of int32 into an Int32s vector, returning the vector and the number of elements loaded.
 func LoadInt32sPart([]int32) (Int32s, int)
 
-// BroadcastInt32 fills the elements of a slice with its argument value.
+// BroadcastInt32s fills the elements of a slice with its argument value.
 func BroadcastInt32s(int32) Int32s
 
 // Abs returns the element-wise absolute value of x.
@@ -282,6 +291,9 @@ func (x Int32s) NotEqual(y Int32s) Mask32s
 // Or returns the bitwise OR of x and y.
 func (x Int32s) Or(y Int32s) Int32s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Int32s) ReduceSum() int32
+
 // RotatesAllLeft rotates all elements left by y bits.
 func (x Int32s) RotateAllLeft(dist uint64) Int32s
 
@@ -315,13 +327,13 @@ func (x Int32s) ToMask() (to Mask32s)
 // Xor returns the bitwise XOR of x and y.
 func (x Int32s) Xor(y Int32s) Int32s
 
-// LoadInt64 loads a slice of int64 into an Int64s vector.
+// LoadInt64s loads a slice of int64 into an Int64s vector.
 func LoadInt64s([]int64) Int64s
 
-// LoadInt64Part loads a partial slice of int64 into an Int64s vector, returning the vector and the number of elements loaded.
+// LoadInt64sPart loads a partial slice of int64 into an Int64s vector, returning the vector and the number of elements loaded.
 func LoadInt64sPart([]int64) (Int64s, int)
 
-// BroadcastInt64 fills the elements of a slice with its argument value.
+// BroadcastInt64s fills the elements of a slice with its argument value.
 func BroadcastInt64s(int64) Int64s
 
 // Add returns the element-wise sum of x and y.
@@ -402,13 +414,13 @@ func (x Int64s) ToMask() (to Mask64s)
 // Xor returns the bitwise XOR of x and y.
 func (x Int64s) Xor(y Int64s) Int64s
 
-// LoadUint8 loads a slice of uint8 into an Uint8s vector.
+// LoadUint8s loads a slice of uint8 into an Uint8s vector.
 func LoadUint8s([]uint8) Uint8s
 
-// LoadUint8Part loads a partial slice of uint8 into an Uint8s vector, returning the vector and the number of elements loaded.
+// LoadUint8sPart loads a partial slice of uint8 into an Uint8s vector, returning the vector and the number of elements loaded.
 func LoadUint8sPart([]uint8) (Uint8s, int)
 
-// BroadcastUint8 fills the elements of a slice with its argument value.
+// BroadcastUint8s fills the elements of a slice with its argument value.
 func BroadcastUint8s(uint8) Uint8s
 
 // Add returns the element-wise sum of x and y.
@@ -459,8 +471,14 @@ func (x Uint8s) Not() Uint8s
 // NotEqual returns a mask indicating where x and y are not equal.
 func (x Uint8s) NotEqual(y Uint8s) Mask8s
 
+// OnesCount counts the number of set bits in each element.
+func (x Uint8s) OnesCount() Uint8s
+
 // Or returns the bitwise OR of x and y.
 func (x Uint8s) Or(y Uint8s) Uint8s
+
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint8s) ReduceSum() uint8
 
 // ReshapeToUint16s reinterprets the vector bits as a Uint16s vector.
 func (x Uint8s) ReshapeToUint16s() Uint16s
@@ -489,13 +507,13 @@ func (x Uint8s) SubSaturated(y Uint8s) Uint8s
 // Xor returns the bitwise XOR of x and y.
 func (x Uint8s) Xor(y Uint8s) Uint8s
 
-// LoadUint16 loads a slice of uint16 into an Uint16s vector.
+// LoadUint16s loads a slice of uint16 into an Uint16s vector.
 func LoadUint16s([]uint16) Uint16s
 
-// LoadUint16Part loads a partial slice of uint16 into an Uint16s vector, returning the vector and the number of elements loaded.
+// LoadUint16sPart loads a partial slice of uint16 into an Uint16s vector, returning the vector and the number of elements loaded.
 func LoadUint16sPart([]uint16) (Uint16s, int)
 
-// BroadcastUint16 fills the elements of a slice with its argument value.
+// BroadcastUint16s fills the elements of a slice with its argument value.
 func BroadcastUint16s(uint16) Uint16s
 
 // Add returns the element-wise sum of x and y.
@@ -561,6 +579,9 @@ func (x Uint16s) NotEqual(y Uint16s) Mask16s
 // Or returns the bitwise OR of x and y.
 func (x Uint16s) Or(y Uint16s) Uint16s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint16s) ReduceSum() uint16
+
 // ReshapeToUint32s reinterprets the vector bits as a Uint32s vector.
 func (x Uint16s) ReshapeToUint32s() Uint32s
 
@@ -600,13 +621,13 @@ func (x Uint16s) SubSaturated(y Uint16s) Uint16s
 // Xor returns the bitwise XOR of x and y.
 func (x Uint16s) Xor(y Uint16s) Uint16s
 
-// LoadUint32 loads a slice of uint32 into an Uint32s vector.
+// LoadUint32s loads a slice of uint32 into an Uint32s vector.
 func LoadUint32s([]uint32) Uint32s
 
-// LoadUint32Part loads a partial slice of uint32 into an Uint32s vector, returning the vector and the number of elements loaded.
+// LoadUint32sPart loads a partial slice of uint32 into an Uint32s vector, returning the vector and the number of elements loaded.
 func LoadUint32sPart([]uint32) (Uint32s, int)
 
-// BroadcastUint32 fills the elements of a slice with its argument value.
+// BroadcastUint32s fills the elements of a slice with its argument value.
 func BroadcastUint32s(uint32) Uint32s
 
 // Add returns the element-wise sum of x and y.
@@ -669,6 +690,9 @@ func (x Uint32s) NotEqual(y Uint32s) Mask32s
 // Or returns the bitwise OR of x and y.
 func (x Uint32s) Or(y Uint32s) Uint32s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Uint32s) ReduceSum() uint32
+
 // ReshapeToUint16s reinterprets the vector bits as a Uint16s vector.
 func (x Uint32s) ReshapeToUint16s() Uint16s
 
@@ -705,13 +729,13 @@ func (x Uint32s) Sub(y Uint32s) Uint32s
 // Xor returns the bitwise XOR of x and y.
 func (x Uint32s) Xor(y Uint32s) Uint32s
 
-// LoadUint64 loads a slice of uint64 into an Uint64s vector.
+// LoadUint64s loads a slice of uint64 into an Uint64s vector.
 func LoadUint64s([]uint64) Uint64s
 
-// LoadUint64Part loads a partial slice of uint64 into an Uint64s vector, returning the vector and the number of elements loaded.
+// LoadUint64sPart loads a partial slice of uint64 into an Uint64s vector, returning the vector and the number of elements loaded.
 func LoadUint64sPart([]uint64) (Uint64s, int)
 
-// BroadcastUint64 fills the elements of a slice with its argument value.
+// BroadcastUint64s fills the elements of a slice with its argument value.
 func BroadcastUint64s(uint64) Uint64s
 
 // Add returns the element-wise sum of x and y.
@@ -833,13 +857,13 @@ func (x Uint64s) Sub(y Uint64s) Uint64s
 // Xor returns the bitwise XOR of x and y.
 func (x Uint64s) Xor(y Uint64s) Uint64s
 
-// LoadFloat32 loads a slice of float32 into an Float32s vector.
+// LoadFloat32s loads a slice of float32 into an Float32s vector.
 func LoadFloat32s([]float32) Float32s
 
-// LoadFloat32Part loads a partial slice of float32 into an Float32s vector, returning the vector and the number of elements loaded.
+// LoadFloat32sPart loads a partial slice of float32 into an Float32s vector, returning the vector and the number of elements loaded.
 func LoadFloat32sPart([]float32) (Float32s, int)
 
-// BroadcastFloat32 fills the elements of a slice with its argument value.
+// BroadcastFloat32s fills the elements of a slice with its argument value.
 func BroadcastFloat32s(float32) Float32s
 
 // Abs returns the element-wise absolute value of x.
@@ -896,6 +920,9 @@ func (x Float32s) Neg() Float32s
 // NotEqual returns a mask indicating where x and y are not equal.
 func (x Float32s) NotEqual(y Float32s) Mask32s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float32s) ReduceSum() float32
+
 // Sqrt returns the element-wise square root of x.
 func (x Float32s) Sqrt() Float32s
 
@@ -914,13 +941,13 @@ func (x Float32s) Sub(y Float32s) Float32s
 // ToBits reinterprets the vector bits as an unsigned integer vector.
 func (x Float32s) ToBits() Uint32s
 
-// LoadFloat64 loads a slice of float64 into an Float64s vector.
+// LoadFloat64s loads a slice of float64 into an Float64s vector.
 func LoadFloat64s([]float64) Float64s
 
-// LoadFloat64Part loads a partial slice of float64 into an Float64s vector, returning the vector and the number of elements loaded.
+// LoadFloat64sPart loads a partial slice of float64 into an Float64s vector, returning the vector and the number of elements loaded.
 func LoadFloat64sPart([]float64) (Float64s, int)
 
-// BroadcastFloat64 fills the elements of a slice with its argument value.
+// BroadcastFloat64s fills the elements of a slice with its argument value.
 func BroadcastFloat64s(float64) Float64s
 
 // Abs returns the element-wise absolute value of x.
@@ -974,6 +1001,9 @@ func (x Float64s) Neg() Float64s
 // NotEqual returns a mask indicating where x and y are not equal.
 func (x Float64s) NotEqual(y Float64s) Mask64s
 
+// ReduceSum returns the scalar sum of the elements of x.
+func (x Float64s) ReduceSum() float64
+
 // Sqrt returns the element-wise square root of x.
 func (x Float64s) Sqrt() Float64s
 
@@ -992,8 +1022,17 @@ func (x Float64s) Sub(y Float64s) Float64s
 // ToBits reinterprets the vector bits as an unsigned integer vector.
 func (x Float64s) ToBits() Uint64s
 
+// All returns true when all positions in mask x are true.
+func (x Mask8s) All() bool
+
 // And returns the bitwise AND of x and y.
 func (x Mask8s) And(y Mask8s) Mask8s
+
+// Any returns true when any position in mask x is true.
+func (x Mask8s) Any() bool
+
+// None returns true when no positions in mask x are set.
+func (x Mask8s) None() bool
 
 // Or returns the bitwise OR of x and y.
 func (x Mask8s) Or(y Mask8s) Mask8s
@@ -1004,8 +1043,20 @@ func (x Mask8s) String() string
 // ToInt8s converts the mask to an Int8s vector.
 func (x Mask8s) ToInt8s() (to Int8s)
 
+// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+func (x Mask8s) TrailingZeros() int
+
+// All returns true when all positions in mask x are true.
+func (x Mask16s) All() bool
+
 // And returns the bitwise AND of x and y.
 func (x Mask16s) And(y Mask16s) Mask16s
+
+// Any returns true when any position in mask x is true.
+func (x Mask16s) Any() bool
+
+// None returns true when no positions in mask x are set.
+func (x Mask16s) None() bool
 
 // Or returns the bitwise OR of x and y.
 func (x Mask16s) Or(y Mask16s) Mask16s
@@ -1016,8 +1067,20 @@ func (x Mask16s) String() string
 // ToInt16s converts the mask to an Int16s vector.
 func (x Mask16s) ToInt16s() (to Int16s)
 
+// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+func (x Mask16s) TrailingZeros() int
+
+// All returns true when all positions in mask x are true.
+func (x Mask32s) All() bool
+
 // And returns the bitwise AND of x and y.
 func (x Mask32s) And(y Mask32s) Mask32s
+
+// Any returns true when any position in mask x is true.
+func (x Mask32s) Any() bool
+
+// None returns true when no positions in mask x are set.
+func (x Mask32s) None() bool
 
 // Or returns the bitwise OR of x and y.
 func (x Mask32s) Or(y Mask32s) Mask32s
@@ -1028,8 +1091,20 @@ func (x Mask32s) String() string
 // ToInt32s converts the mask to an Int32s vector.
 func (x Mask32s) ToInt32s() (to Int32s)
 
+// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+func (x Mask32s) TrailingZeros() int
+
+// All returns true when all positions in mask x are true.
+func (x Mask64s) All() bool
+
 // And returns the bitwise AND of x and y.
 func (x Mask64s) And(y Mask64s) Mask64s
+
+// Any returns true when any position in mask x is true.
+func (x Mask64s) Any() bool
+
+// None returns true when no positions in mask x are set.
+func (x Mask64s) None() bool
 
 // Or returns the bitwise OR of x and y.
 func (x Mask64s) Or(y Mask64s) Mask64s
@@ -1039,3 +1114,6 @@ func (x Mask64s) String() string
 
 // ToInt64s converts the mask to an Int64s vector.
 func (x Mask64s) ToInt64s() (to Int64s)
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+func (x Mask64s) TrailingZeros() int

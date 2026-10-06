@@ -231,9 +231,6 @@ func (n *Named) unpack() *Named {
 		return n
 	}
 
-	// underlying comes after unpacking, do not set it
-	defer (func() { assert(!n.stateHas(hasUnder)) })()
-
 	if n.inst != nil {
 		assert(n.fromRHS == nil) // instantiated types are not declared types
 		assert(n.loader == nil)  // cannot import an instantiation
@@ -250,6 +247,8 @@ func (n *Named) unpack() *Named {
 		} else {
 			n.setState(lazyLoaded | unpacked)
 		}
+		// underlying comes after unpacking, do not set it
+		assert(!n.stateHas(hasUnder))
 		return n
 	}
 
@@ -268,16 +267,23 @@ func (n *Named) unpack() *Named {
 		n.loader = nil
 
 		n.tparams = bindTParams(tparams)
+		n.underlying = underlying
 		n.fromRHS = underlying // for cycle detection
 		n.methods = methods
 
-		n.setState(lazyLoaded) // avoid deadlock calling delayed functions
+		// Careful: A delayed function could need the underlying type of
+		// the type we are loading, so we must advance to hasUnder to
+		// avoid a deadlock (see go.dev/issue/80258).
+		n.setState(lazyLoaded | unpacked | hasMethods | hasUnder)
 		for _, f := range delayed {
 			f()
 		}
+		return n
 	}
 
+	// underlying comes after unpacking, do not set it
 	n.setState(lazyLoaded | unpacked | hasMethods)
+	assert(!n.stateHas(hasUnder))
 	return n
 }
 
@@ -356,6 +362,18 @@ func (check *Checker) newNamedInstance(pos syntax.Pos, orig *Named, targs []Type
 }
 
 func (n *Named) cleanup() {
+	// Before CL 825744, incomplete or cyclic named type declarations could leave
+	// n.fromRHS as nil. Typ[Invalid] is better.
+	//
+	// Invariant: avoid returning Typ[Invalid] unless an error was
+	// reported. If n.fromRHS is nil without any recorded error during package
+	// checking, this is an internal compiler bug, so report an error.
+	if n.fromRHS == nil && n.inst == nil {
+		if n.check != nil && n.check.firstErr == nil {
+			n.check.internalErrorf(n.obj, "%v has nil fromRHS", n)
+		}
+		n.fromRHS = Typ[Invalid]
+	}
 	// Instances can have a nil underlying at the end of type checking — they
 	// will lazily expand it as needed. All other types must have one.
 	if n.inst == nil {
@@ -640,6 +658,15 @@ func (n *Named) resolveUnderlying() {
 		switch t := rhs.(type) {
 		case *Alias:
 			rhs = unalias(t)
+			if rhs == nil {
+				// Before CL 825744, unalias(t) returning nil for an incomplete alias
+				// caused an infinite loop here because u was left as nil.
+				//
+				// An incomplete alias has no defined underlying type. Just as calling
+				// a.Underlying() on an incomplete alias panics, resolving the underlying
+				// type of a Named type whose RHS is an incomplete alias must panic.
+				panic("Underlying() called on Named type with incomplete Alias")
+			}
 
 		case *Named:
 			if debug {

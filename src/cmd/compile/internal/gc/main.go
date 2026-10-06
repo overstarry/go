@@ -22,11 +22,13 @@ import (
 	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rewriteresults"
 	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/slice"
-	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssacompile"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
+	"cmd/compile/internal/stats"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
@@ -82,7 +84,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
 	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
 
-	base.DebugSSA = ssa.PhaseOption
+	base.DebugSSA = ssacompile.PhaseOption
 	base.ParseFlags()
 
 	if flagGCStart := base.Debug.GCStart; flagGCStart > 0 || // explicit flags overrides environment variable disable of GC boost
@@ -229,7 +231,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordPackageName()
 
 	// Prepare for backend processing.
-	ssagen.InitConfig()
+	ssagen.InitConfig(ssacompile.NewConfig(ssagen.Arch.SoftFloat))
 
 	// Apply coverage fixups, if applicable.
 	coverage.Fixup()
@@ -280,6 +282,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// and doesn't benefit from dead-coding or inlining.
 	symABIs.GenABIWrappers()
 
+	// Preassign symbol indexes so that they're set when we emit export data,
+	// if it's emitted early. This depends on the results of GenABIWrappers.
+	preassignSymIdxs(symABIs)
+
 	deadlocals.Funcs(typecheck.Target.Funcs)
 
 	// Escape analysis.
@@ -292,6 +298,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// because large values may contain pointers, it must happen early.
 	base.Timer.Start("fe", "escapes")
 	escape.Funcs(typecheck.Target.Funcs)
+
+	rewriteresults.Funcs(typecheck.Target.Funcs)
 
 	slice.Funcs(typecheck.Target.Funcs)
 
@@ -306,6 +314,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 
 	ir.CurFunc = nil
+
+	base.Timer.Start("fe", "dumpexport")
+	dumpexport()
 
 	reflectdata.WriteBasicTypes()
 
@@ -360,6 +371,14 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 
 		break
+	}
+
+	if base.Flag.Stats {
+		s := new(stats.Stats)
+		for _, fn := range typecheck.Target.Funcs {
+			s.Merge(fn.Stats)
+		}
+		s.Print()
 	}
 
 	base.Timer.AddEvent(int64(len(typecheck.Target.Funcs)), "funcs")

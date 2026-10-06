@@ -1003,10 +1003,10 @@ func (p *parser) callStmt() *CallStmt {
 	return s
 }
 
-// Operand     = Literal | OperandName | MethodExpr | "(" Expression ")" .
+// Operand     = Literal | OperandName [ TypeArgs ] | "(" Expression ")" .
 // Literal     = BasicLit | CompositeLit | FunctionLit .
 // BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
-// OperandName = identifier | QualifiedIdent.
+// OperandName = identifier | QualifiedIdent .
 func (p *parser) operand(keep_parens bool) Expr {
 	if trace {
 		defer p.trace("operand " + p.tok.String())()
@@ -1018,6 +1018,9 @@ func (p *parser) operand(keep_parens bool) Expr {
 
 	case _Literal:
 		return p.oliteral()
+
+	case _Lbrace:
+		return p.literalVal()
 
 	case _Lparen:
 		pos := p.pos()
@@ -1068,7 +1071,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		return ftyp
 
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:
-		return p.type_() // othertype
+		return p.type_()
 
 	default:
 		x := p.badExpr()
@@ -1243,7 +1246,7 @@ loop:
 				p.syntaxError("cannot parenthesize type in composite literal")
 				// already progressed, no need to advance
 			}
-			n := p.complitexpr()
+			n := p.literalVal()
 			n.Type = x
 			x = n
 
@@ -1270,24 +1273,11 @@ func isValue(x Expr) bool {
 	return false
 }
 
-// Element = Expression | LiteralValue .
-func (p *parser) bare_complitexpr() Expr {
-	if trace {
-		defer p.trace("bare_complitexpr")()
-	}
-
-	if p.tok == _Lbrace {
-		// '{' start_complit braced_keyval_list '}'
-		return p.complitexpr()
-	}
-
-	return p.expr()
-}
-
 // LiteralValue = "{" [ ElementList [ "," ] ] "}" .
-func (p *parser) complitexpr() *CompositeLit {
+// ElementList  = [ Expression ":" ] Expression { "," [ Expression ":" ] Expression } .
+func (p *parser) literalVal() *CompositeLit {
 	if trace {
-		defer p.trace("complitexpr")()
+		defer p.trace("compositeLit")()
 	}
 
 	x := new(CompositeLit)
@@ -1297,14 +1287,14 @@ func (p *parser) complitexpr() *CompositeLit {
 	p.want(_Lbrace)
 	x.Rbrace = p.list("composite literal", _Comma, _Rbrace, func() bool {
 		// value
-		e := p.bare_complitexpr()
+		e := p.expr()
 		if p.tok == _Colon {
 			// key ':' value
 			l := new(KeyValueExpr)
 			l.pos = p.pos()
 			p.next()
 			l.Key = e
-			l.Value = p.bare_complitexpr()
+			l.Value = p.expr()
 			e = l
 			x.NKeys++
 		}
@@ -2710,7 +2700,7 @@ func (p *parser) stmtOrNil() Stmt {
 }
 
 // StatementList = { Statement ";" } .
-func (p *parser) stmtList() (l []Stmt) {
+func (p *parser) stmtList() (list []Stmt) {
 	if trace {
 		defer p.trace("stmtList")()
 	}
@@ -2721,7 +2711,7 @@ func (p *parser) stmtList() (l []Stmt) {
 		if s == nil {
 			break
 		}
-		l = append(l, s)
+		list = append(list, s)
 		// ";" is optional before "}"
 		if !p.got(_Semi) && p.tok != _Rbrace {
 			p.syntaxError("at end of statement")

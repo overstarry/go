@@ -10,27 +10,29 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"text/template"
 	"unicode"
 
-	"_gen/sgutil"
+	"simd/archsimd/_gen/gentools"
+	"simd/archsimd/_gen/sgutil"
+	"simd/archsimd/_gen/specdoc"
+	"simd/archsimd/_gen/specgen"
 )
 
 var (
-	gorootsrc = flag.String("gorootsrc", "../../../../../src", "root of destination directory, normally GOROOT/src")
-
-	genTypesFile      = flag.String("types", "GOROOTSRC/simd/archsimd/types_wasm.go", "output file for simd types (e.g. types_wasm.go)")
-	genOpsFile        = flag.String("ops", "GOROOTSRC/simd/archsimd/ops_wasm.go", "output file for simd ops (e.g. ops_wasm.go)")
-	genSSAOpsFile     = flag.String("ssaops", "GOROOTSRC/cmd/compile/internal/ssa/_gen/simdWasmops.go", "output file for ssa ops (e.g. simdWasmops.go)")
-	genGenOpsFile     = flag.String("genops", "GOROOTSRC/cmd/compile/internal/ssa/_gen/simdgenericOps.go", "output file for generic ssa ops (e.g. simdgenericOps.go)")
-	genSSARulesFile   = flag.String("ssarules", "GOROOTSRC/cmd/compile/internal/ssa/_gen/simdWasm.rules", "output file for ssa rules (e.g. simdWasm.rules)")
-	genWasmSSAFile    = flag.String("wasmssa", "GOROOTSRC/cmd/compile/internal/wasm/simdssa.go", "output file for wasm ssa (e.g. simdssa.go)")
-	genIntrinsicsFile = flag.String("intrinsics", "GOROOTSRC/cmd/compile/internal/ssagen/simdWasmintrinsics.go", "output file for intrinsics (e.g. simdWasmintrinsics.go)")
+	genTypesFile      = flag.String("types", "simd/archsimd/types_wasm.go", "output file for simd types (e.g. types_wasm.go)")
+	genOpsFile        = flag.String("ops", "simd/archsimd/ops_wasm.go", "output file for simd ops (e.g. ops_wasm.go)")
+	genSSAOpsFile     = flag.String("ssaops", "cmd/compile/internal/ssa/_gen/simdWasmops.go", "output file for ssa ops (e.g. simdWasmops.go)")
+	genGenOpsFile     = flag.String("genops", "cmd/compile/internal/ssa/_gen/simdgenericOps.go", "output file for generic ssa ops (e.g. simdgenericOps.go)")
+	genSSARulesFile   = flag.String("ssarules", "cmd/compile/internal/ssa/_gen/simdWasm.rules", "output file for ssa rules (e.g. simdWasm.rules)")
+	genWasmSSAFile    = flag.String("wasmssa", "cmd/compile/internal/wasm/simdssa.go", "output file for wasm ssa (e.g. simdssa.go)")
+	genIntrinsicsFile = flag.String("intrinsics", "cmd/compile/internal/ssagen/simdWasmintrinsics.go", "output file for intrinsics (e.g. simdWasmintrinsics.go)")
 
 	list = flag.Bool("list", false, "list all the opcodes")
+
+	genFlags = gentools.RegisterFlags(nil)
 )
 
 type simdType struct {
@@ -263,15 +265,15 @@ var allFlags = []OpFlags{
 
 func (o OpFlags) String() string {
 	sep := ""
-	ret := ""
+	var ret strings.Builder
 
 	for _, x := range allFlags {
 		if x&o != 0 {
-			ret += sep + x.OneString()
+			ret.WriteString(sep + x.OneString())
 			sep = "+"
 		}
 	}
-	return ret
+	return ret.String()
 }
 
 // wasmOp represents a WebAssembly SIMD instruction.
@@ -337,7 +339,7 @@ func (o *wasmOp) ImmName() string {
 
 func snakeToCamel(s string) string {
 	capnext := true
-	result := ""
+	var result strings.Builder
 	for _, c := range s {
 		if c == '_' {
 			capnext = true
@@ -351,9 +353,9 @@ func snakeToCamel(s string) string {
 				capnext = false
 			}
 		}
-		result += string(c)
+		result.WriteString(string(c))
 	}
-	return result
+	return result.String()
 }
 
 // Op returns the snakeToCamel version of the WASM operation,
@@ -838,6 +840,11 @@ func initWasmOps() {
 		if strings.HasPrefix(s, "sub") || s == "div" {
 			return 0
 		}
+		if t.Float && (s == "min" || s == "max") {
+			// Generic Min/Max ops are shared with AMD64, where NaNs and
+			// signed zeros make these operations non-commutative.
+			return 0
+		}
 		return IsCommutative
 	}
 	isMask := func(s string, t *simdType) OpFlags {
@@ -1055,7 +1062,6 @@ func mustVal[T any](v T, err error) T {
 }
 
 func main() {
-
 	flag.Parse()
 
 	initWasmOps()
@@ -1068,33 +1074,30 @@ func main() {
 		return
 	}
 
-	*genTypesFile = mustVal(filepath.Abs(strings.ReplaceAll(*genTypesFile, "GOROOTSRC", *gorootsrc)))
-	*genOpsFile = mustVal(filepath.Abs(strings.ReplaceAll(*genOpsFile, "GOROOTSRC", *gorootsrc)))
-	*genSSAOpsFile = mustVal(filepath.Abs(strings.ReplaceAll(*genSSAOpsFile, "GOROOTSRC", *gorootsrc)))
-	*genGenOpsFile = mustVal(filepath.Abs(strings.ReplaceAll(*genGenOpsFile, "GOROOTSRC", *gorootsrc)))
-	*genSSARulesFile = mustVal(filepath.Abs(strings.ReplaceAll(*genSSARulesFile, "GOROOTSRC", *gorootsrc)))
-	*genWasmSSAFile = mustVal(filepath.Abs(strings.ReplaceAll(*genWasmSSAFile, "GOROOTSRC", *gorootsrc)))
-	*genIntrinsicsFile = mustVal(filepath.Abs(strings.ReplaceAll(*genIntrinsicsFile, "GOROOTSRC", *gorootsrc)))
+	specDir := specgen.MustFindSpecDir(genFlags.GOROOT)
+	specFuncs, err := specgen.Load(specDir, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "loading spec: %v\n", err)
+		os.Exit(1)
+	}
+	specIdx := specgen.NewIndex(specFuncs)
 
-	log.Println("types file =", *genTypesFile)
-	log.Println("ops file =", *genOpsFile)
-	log.Println("ssa ops file =", *genSSAOpsFile)
-	log.Println("ssa generic ops file =", *genGenOpsFile)
-	log.Println("ssa rules file =", *genSSARulesFile)
-	log.Println("ssa wasm ops file =", *genWasmSSAFile)
-	log.Println("intrinsics file =", *genIntrinsicsFile)
+	var files gentools.Files
+	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
+		AllowDocRewrite:     true,
+		AllowNameMismatches: true,
+		NoFillDoc:           true,
+		NoFillNames:         true,
+	}))
+	defer files.FlushOrExit()
 
-	log.Println("Generating WASM SIMD files...")
-
-	sgutil.FormatWriteAndClose(genTypes(), *genTypesFile)
-	sgutil.FormatWriteAndClose(genOps(), *genOpsFile)
-	sgutil.FormatWriteAndClose(genSSAOps(), *genSSAOpsFile)
-	sgutil.FormatWriteAndClose(genWasmSSA(), *genWasmSSAFile)
-	sgutil.FormatWriteAndClose(genIntrinsics(), *genIntrinsicsFile)
-	sgutil.FormatWriteAndClose(genGenerics(), *genGenOpsFile)
-
-	genSSARules()
-
+	genTypes(files.NewGoFile(*genTypesFile))
+	genOps(files.NewGoFile(*genOpsFile))
+	genSSAOps(files.NewGoFile(*genSSAOpsFile))
+	genWasmSSA(files.NewGoFile(*genWasmSSAFile))
+	genIntrinsics(files.NewGoFile(*genIntrinsicsFile))
+	genGenerics(files.NewGoFile(*genGenOpsFile))
+	genSSARules(files.NewRawFile(*genSSARulesFile))
 }
 
 func templateOf(name, text string) *template.Template {
@@ -1151,8 +1154,7 @@ var lenDecl = templateOf("len decl", `
 func (x {{.Name}}) Len() int { return {{.Count}} }
 `)
 
-func genTypes() (f *bytes.Buffer) {
-	f = new(bytes.Buffer)
+func genTypes(f *bytes.Buffer) {
 	fmt.Fprintln(f, "// Code generated by 'wasmgen'; DO NOT EDIT.")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "//go:build goexperiment.simd && wasm")
@@ -1174,7 +1176,6 @@ func genTypes() (f *bytes.Buffer) {
 	for _, t := range masks {
 		maskTypeDecl.Execute(f, t)
 	}
-	return
 }
 
 var docForOp map[string]string = map[string]string{
@@ -1415,8 +1416,7 @@ func forAllReshape(f func(from, to *simdType)) {
 	}
 }
 
-func genOps() (f *bytes.Buffer) {
-	f = new(bytes.Buffer)
+func genOps(f *bytes.Buffer) {
 	fmt.Fprintln(f, "// Code generated by 'wasmgen'; DO NOT EDIT.")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "//go:build goexperiment.simd && wasm")
@@ -1500,13 +1500,11 @@ func genOps() (f *bytes.Buffer) {
 	forAllReshape(func(from, to *simdType) {
 		sgutil.ReshapeDcl.Execute(f, sgutil.Conversion(from, to))
 	})
-	return
 }
 
 // genSSARules generates the definitions for WASM-specific SIMD SSA operations.
 // The expected target directory is cmd/compile/internal/ssa/_gen
-func genSSAOps() (f *bytes.Buffer) {
-	f = new(bytes.Buffer)
+func genSSAOps(f *bytes.Buffer) {
 	fmt.Fprintln(f, "// Code generated by 'wasmgen'; DO NOT EDIT.")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "package main")
@@ -1547,19 +1545,12 @@ func genSSAOps() (f *bytes.Buffer) {
 
 	fmt.Fprintln(f, "\t}")
 	fmt.Fprintln(f, "}")
-	return
 }
 
 // genSSARules generates the rules that convert SSA generic (SIMD) operations
 // into WASM-specific SIMD SSA operations.
 // The expected target directory is cmd/compile/internal/ssa/_gen
-func genSSARules() {
-	f, err := os.Create(*genSSARulesFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
+func genSSARules(f *bytes.Buffer) {
 	fmt.Fprintln(f, "// Code generated by 'wasmgen'; DO NOT EDIT.")
 	fmt.Fprintln(f)
 
@@ -1621,15 +1612,14 @@ func genSSARules() {
 // genWasmSSA creates the file/function that converts SSA nodes for WASM SIMD operations
 // into the appropriate assembly language.
 // The expected target directory is cmd/compile/internal/wasm
-func genWasmSSA() (f *bytes.Buffer) {
-	f = new(bytes.Buffer)
-
+func genWasmSSA(f *bytes.Buffer) {
 	fmt.Fprintln(f, "// Code generated by 'wasmgen'; DO NOT EDIT.")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "package wasm")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "import (")
 	fmt.Fprintln(f, "\t\"cmd/compile/internal/ssa\"")
+	fmt.Fprintln(f, "\t\"cmd/compile/internal/ssa/ssaop\"")
 	fmt.Fprintln(f, "\t\"cmd/compile/internal/ssagen\"")
 	fmt.Fprintln(f, "\t\"cmd/internal/obj\"")
 	fmt.Fprintln(f, "\t\"cmd/internal/obj/wasm\"")
@@ -1861,19 +1851,18 @@ func genWasmSSA() (f *bytes.Buffer) {
 		if op.class != ssagenWasmOps[i+1].class {
 			sep = ":"
 		}
-		fmt.Fprintf(f, "ssa.OpWasm%s%s", op.op.SsaWasmOp(), sep)
+		fmt.Fprintf(f, "ssaop.OpWasm%s%s", op.op.SsaWasmOp(), sep)
 		if i >= lastCR+3 {
 			fmt.Fprintln(f)
 			lastCR = i
 		}
 	}
-	return f
 }
 
 // genGenerics creates SSA generic ops that are implied by WASM SIMD instructions
 // that were not previously implied by AMD64 SIMD instructions.
 // The expected target directory is cmd/compile/internal/ssa/_gen
-func genGenerics() *bytes.Buffer {
+func genGenerics(f *bytes.Buffer) {
 	var newOps []sgutil.GenericOpsData
 
 	for _, op := range wasmOps {
@@ -1892,39 +1881,37 @@ func genGenerics() *bytes.Buffer {
 		newOps = append(newOps, newOp)
 	}
 
-	buf := sgutil.MergeSIMDGenericOps(newOps, *genGenOpsFile, "wasm")
-
-	return buf
+	buf := sgutil.MergeSIMDGenericOps(newOps, genFlags.InputPath(*genGenOpsFile), "wasm")
+	f.Write(buf.Bytes())
 }
 
 // genIntrinsics creates the function that registers all of the WASM SIMD intrinsics.
 // The expected target directory is cmd/compile/internal/ssagen
-func genIntrinsics() (f *bytes.Buffer) {
-	f = new(bytes.Buffer)
-
-	fmt.Fprint(f, `// Code generated by 'wasmgen'; DO NOT EDIT.
+func genIntrinsics(f *bytes.Buffer) {
+	header := template.Must(template.New("intrinsicsHeader").Parse(`// Code generated by 'wasmgen'; DO NOT EDIT.
 
 package ssagen
 
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
 )
 
 func initWasmSIMD() {
-	makeSimdOp1 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp1 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(op, types.TypeVec128, args[0])
 		}
 	}
-	makeSimdOp2 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp2 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(op, types.TypeVec128, args[0], args[1])
 		}
 	}
-	makeSimdOp3 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp3 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(op, types.TypeVec128, args[0], args[1], args[2])
 		}
@@ -1938,16 +1925,16 @@ func initWasmSIMD() {
 	}
 
 	// converting to a mask is an not-equals comparison with zero, zero obtained by x XOR x.
-	makeToMask := func(op, xor ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeToMask := func(op, xor ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(op, types.TypeVec128, args[0], s.newValue2(xor, n.Type(), args[0], args[0]))
 		}
 	}
 
-	makeSimdOp1Imm8 := func(op ssa.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp1Imm8 := func(op ssaop.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			t := n.Type()
-			if args[1].Op == ssa.OpConst8 {
+			if args[1].Op == ssaop.OpConst8 && uint64(args[1].AuxInt) < immLimit {
 				return s.newValue1I(op, t, args[1].AuxInt, args[0])
 			}
 			return immJumpTableN(s, args[1], n, immLimit, func(sNew *state, idx int) {
@@ -1957,10 +1944,10 @@ func initWasmSIMD() {
 		}
 	}
 
-	makeSimdOp2Imm8 := func(op ssa.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp2Imm8 := func(op ssaop.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			t := types.TypeVec128
-			if args[1].Op == ssa.OpConst8 {
+			if args[1].Op == ssaop.OpConst8 && uint64(args[1].AuxInt) < immLimit {
 				return s.newValue2I(op, t, args[1].AuxInt, args[0], args[2])
 			}
 			return immJumpTableN(s, args[1], n, immLimit, func(sNew *state, idx int) {
@@ -1974,7 +1961,10 @@ func initWasmSIMD() {
 		intrinsics.add(sys.ArchWasm, pkg, fn, builder)
 	}
 
-`)
+`))
+	if err := header.Execute(f, nil); err != nil {
+		log.Fatalf("executing intrinsics header template: %v", err)
+	}
 
 	for _, op := range wasmOps {
 
@@ -1991,7 +1981,7 @@ func initWasmSIMD() {
 		if g == "" || op.Flag(IsSplat) {
 			continue
 		}
-		genOp := "ssa.Op" + g
+		genOp := "ssaop.Op" + g
 
 		if op.ImmRange() > 0 {
 			switch op.ArgCount() {
@@ -2021,7 +2011,7 @@ func initWasmSIMD() {
 		// Conversions to/from mask types
 		// func (x Int8x16) ToMask() Mask8x16 -> x.Ne(x xor x)
 		// func (x Mask8x16) ToInt8x16() Int8x16 -> AsInt8x16 (just a pun, masks are negative)
-		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", makeToMask(%s, %s))\n", pkg, t.Name+".ToMask", "ssa.Op"+t.Methods["ne"].SsaGenOp(), "ssa.Op"+t.Methods["xor"].SsaGenOp())
+		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", makeToMask(%s, %s))\n", pkg, t.Name+".ToMask", "ssaop.Op"+t.Methods["ne"].SsaGenOp(), "ssaop.Op"+t.Methods["xor"].SsaGenOp())
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", makeAsOp())\n", pkg, t.MaskFor().Name+".To"+t.Name)
 	}
 
@@ -2032,7 +2022,7 @@ func initWasmSIMD() {
 			u = t.IntShaped
 		}
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdLoad())\n", pkg, "Load"+t.Name+"Array")
-		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdBroadcast(ssa.OpBroadcast%s))\n", pkg, "Broadcast"+t.Name, u.Name)
+		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdBroadcast(ssaop.OpBroadcast%s))\n", pkg, "Broadcast"+t.Name, u.Name)
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdStore())\n", pkg, t.Name+".StoreArray")
 	}
 
@@ -2060,5 +2050,4 @@ func initWasmSIMD() {
 	})
 
 	fmt.Fprintln(f, "}")
-	return
 }

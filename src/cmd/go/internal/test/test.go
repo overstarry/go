@@ -1202,9 +1202,9 @@ func builderTest(ld *modload.Loader, b *work.Builder, ctx context.Context, pkgOp
 	// package depend on building the non-test version, so that we
 	// only report build errors once. Issue #44624.
 	if imported && ptest != p {
-		buildTest := b.CompileAction(work.ModeBuild, work.ModeBuild, ptest)
-		buildP := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
-		buildTest.Deps = append(buildTest.Deps, buildP)
+		exportTest := b.BuildExportAction(work.ModeBuild, work.ModeBuild, ptest)
+		exportP := b.BuildExportAction(work.ModeBuild, work.ModeBuild, p)
+		exportTest.Deps = append(exportTest.Deps, exportP)
 	}
 
 	testBinary := testBinaryName(p)
@@ -1733,9 +1733,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		if bytes.HasPrefix(out, tooManyFuzzTestsToFuzz[1:]) || bytes.Contains(out, tooManyFuzzTestsToFuzz) {
 			norun = "[-fuzz matches more than one fuzz test, won't fuzz]"
 		}
-		if len(out) > 0 && !bytes.HasSuffix(out, []byte("\n")) {
-			// Ensure that the output ends with a newline before the "ok"
-			// line we're about to print (https://golang.org/issue/49317).
+		// Ensure the output ends with a newline before the "ok" line
+		// (https://golang.org/issue/49317). Check buf, which holds the
+		// output still to be printed; out may include output that was
+		// discarded above (https://go.dev/issue/79786).
+		if buf.Len() > 0 && !bytes.HasSuffix(buf.Bytes(), []byte("\n")) {
 			cmd.Stdout.Write([]byte("\n"))
 		}
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
@@ -2015,6 +2017,10 @@ var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/
 // computeTestInputsID computes the "test inputs ID"
 // (see comment in tryCacheWithID above) for the
 // test log.
+//
+// testing/internal/testdeps omits an entry it has already written
+// since the last chdir, so what an entry contributes here must not
+// depend on how many times the test used that input.
 func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error) {
 	testlog = bytes.TrimPrefix(testlog, testlogMagic)
 	h := cache.NewHash("testInputs")

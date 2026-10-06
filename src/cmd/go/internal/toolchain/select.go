@@ -25,6 +25,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 	"cmd/go/internal/work"
@@ -532,6 +533,7 @@ func modGoToolchain(ld *modload.Loader) (file, goVers, toolchain string) {
 	if _, err := os.Stat(file); err != nil {
 		file = ""
 	}
+	isWork := file != ""
 	if file == "" {
 		file = modload.FindGoMod(wd)
 	}
@@ -539,7 +541,13 @@ func modGoToolchain(ld *modload.Loader) (file, goVers, toolchain string) {
 		return "", "", ""
 	}
 
-	data, err := os.ReadFile(file)
+	var data []byte
+	var err error
+	if isWork {
+		data, err = os.ReadFile(file)
+	} else {
+		data, err = lockedfile.Read(file)
+	}
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
@@ -694,11 +702,11 @@ func maybeSwitchForGoInstallVersion(ld *modload.Loader, minVers string) {
 	// and may end up being common in self-contained "go install" or "go run"
 	// command lines if we add new flags in the future.
 
-	// Set up modules without an explicit go.mod, to download go.mod.
+	// Use a fresh module loader without an explicit go.mod, to download go.mod.
+	ld = modload.NewLoader()
 	ld.ForceUseModules = true
 	ld.RootMode = modload.NoRoot
 	modload.Init(ld)
-	defer ld.Reset()
 
 	// See internal/load.PackagesAndErrorsOutsideModule
 	ctx := context.Background()

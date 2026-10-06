@@ -217,7 +217,7 @@ func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, p
 
 var stdlibImportcfg = sync.OnceValue(func() string {
 	cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
-	cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
+	cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=", "TESTGO_EXPORT_ARCHIVE=1")
 	output, err := cmd.Output()
 	if err, ok := err.(*exec.ExitError); ok && len(err.Stderr) != 0 {
 		log.Fatalf("'go list' failed: %v: %s", err, err.Stderr)
@@ -644,7 +644,8 @@ func (t test) run() error {
 		var buf bytes.Buffer
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
-		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
+		// test/linkmain_run.go itself shells out to "go list -export", so we pass this along.
+		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=", "TESTGO_EXPORT_ARCHIVE=1")
 		if runInDir != "" {
 			cmd.Dir = runInDir
 			// Set PWD to match Dir to speed up os.Getwd in the child process.
@@ -765,12 +766,12 @@ func (t test) run() error {
 			if err := cmd.Run(); err != nil {
 				lastErr = err
 				t.Log(env, "\n", cmd.Stderr)
-			}
-
-			err := t.asmCheck(buf.String(), long, env, ops[env])
-			if err != nil {
-				lastErr = err
-				t.Log(err)
+			} else {
+				// The compilation succeeded, run the asmCheck
+				if err := t.asmCheck(buf.String(), long, env, ops[env]); err != nil {
+					lastErr = err
+					t.Log(err)
+				}
 			}
 		}
 		// The error(s) have been logged earlier. Pass up a generic one.
